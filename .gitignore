@@ -1,0 +1,27 @@
+# 虚拟环境
+.venv/
+
+# PyCharm工程配置
+.idea/
+
+# Python缓存文件
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 上传的PDF文件
+uploads/
+
+# 密钥环境变量（防止泄露大模型API KEY！）
+.env
+
+# Chroma向量数据库持久化数据
+chroma_db/
+
+# 日志
+*.log
+
+# 操作系统多余文件
+.DS_Store
+Thumbs.db
