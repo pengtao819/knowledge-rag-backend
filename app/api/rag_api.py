@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.concurrency import run_in_threadpool
 # 导入service里的上传处理函数
 from app.services.rag_service import save_upload_pdf, parse_pdf
 import os
@@ -8,7 +9,7 @@ UPLOAD_FOLDER = './uploads'
 
 
 @router.post("/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+async def upload_and_process_pdf(file: UploadFile = File(...)):
     try:
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(status_code=400, detail="仅支持PDF文件")
@@ -23,16 +24,26 @@ async def upload_pdf(file: UploadFile = File(...)):
             msg = "文件不存在，已保存并解析"
         else:
             # 文件已存在：不保存，直接使用旧文件解析
-            msg = "同名文件已存在，跳过保存，直接解析已有文件"
+            msg = "同名文件已存在，跳过保存，直接解析已有文件"   # 下次改成按文件内容判断
 
-        # 无论新文件还是旧文件，都执行解析
-        text = parse_pdf(file.filename)
+        # 解析
+        docs = await run_in_threadpool(parse_pdf, file.filename)
+        if not docs:
+            raise HTTPException(status_code=400, detail="PDF未提取到文本")
+
+        # 分块
+        chunks = await run_in_threadpool(chunking_pdf, docs)
 
         return {
             "filename": file.filename,
             "is_new_upload": not file_exist,
-            "text_preview": text[:300],
+            "pages": len(docs),
+            "chunks": len(chunks),
+            "text_preview": chunks[0].page_content[:300] if chunks else "",
             "msg": msg
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"PDF处理失败：{str(e)}")
+
