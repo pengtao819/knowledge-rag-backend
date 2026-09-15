@@ -9,6 +9,8 @@ from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
 
 # 上传目录
 UPLOAD_FOLDER = './uploads'
@@ -48,8 +50,8 @@ def get_chroma_collection():
         metadata={"hnsw:space": "cosine"},  # 用余弦相似度
     )
 
+ # 获取配置好的embedding模型
 def get_embedding_model():
-    # 获取配置好的embedding模型
     return OpenAIEmbeddings(
         model=settings.EMBEDDING_MODEL,
         api_key=settings.DASHSCOPE_API_KEY,
@@ -172,6 +174,97 @@ def store_chunks_to_chroma(chunks: List[Document]) -> int:
     )
 
     return len(chunks)
+
+# 检索函数
+def retrieve_chunks(question: str, top_k=3, max_distance: float = 0.65) -> List[Document]:
+    collection = get_chroma_collection()
+    embedding_model = get_embedding_model()
+
+    # 将问题转向量
+    query_vector = embedding_model.embed_query(question)
+
+    # 在chroma里检索
+    results = collection.query(
+        query_embeddings=[query_vector],
+        n_results=top_k,
+        include=["documents", "metadatas", "distances"]
+    )
+
+    # 加这行，看实际 distance
+    print("=== 查询:", question, "===")
+    for text, dist in zip(results["documents"][0], results["distances"][0]):
+        print(f"distance={dist:.4f} | {text[:50]}")
+
+    # 包装成Document列表
+    docs = []
+    for text, meta, dist in zip(
+        results["documents"][0],
+        results["metadatas"][0],
+        results["distances"][0]
+    ):
+        if dist > max_distance:     # 距离大于0.65（测试得来的数值），直接丢弃
+            continue
+        docs.append(Document(
+            page_content=text,
+            metadata={**meta, "distance": dist}
+        ))
+
+    return docs
+
+# RAG回答
+def rag_chat(question: str, top_k=3) -> dict:
+    # 检索
+    docs = retrieve_chunks(question, top_k)
+    if not docs:
+        return {
+            "answer": "根据当前知识库无法确定",
+            "sources": []
+        }
+
+    # 拼接上下文
+    context_parts = []
+    for i, doc in enumerate(docs, start=1):
+        context_parts.append(f"[{i}] {doc.page_content}")
+    context = "\n\n".join(context_parts)
+
+    # 构造prompt
+    system_prompt = (
+        "你是一个知识库助手。请严格根据下面提供的上下文回答用户问题。"
+        "如果上下文没有相关信息，就回答'根据当前知识库无法确定'。"
+        "回答时请用 [1] [2] 这样的编号引用来源。"
+        "不需要讨好用户，不要编造上下文中没有的内容。"
+    )
+    user_prompt = f"上下文：\n{context}\n\n用户问题：{question}"
+
+    # 调用LLM
+    llm = ChatOpenAI(
+        model=settings.LLM_MODEL,
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_BASE_URL,
+        temperature=0   # 稳定性高，准确
+    )
+    response = llm.invoke([
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_prompt)
+    ])
+
+    # 构造返回
+    sources = [
+        {
+            "index": i,
+            "source": doc.metadata["source"],
+            "page": doc.metadata["page"],
+            "chunk_index": doc.metadata["chunk_index"],
+            "preview": doc.page_content[:100]
+        }
+        for i, doc in enumerate(docs, start=1)
+    ]
+
+    return {
+        "answer": response.content,
+        "sources": sources
+    }
+
 
 
 

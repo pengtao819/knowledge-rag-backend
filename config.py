@@ -20,4 +20,9 @@ class Settings():
     # 上传
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
 
+    # LLM
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "")
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen3.8-max-0902")
+
 settings = Settings()

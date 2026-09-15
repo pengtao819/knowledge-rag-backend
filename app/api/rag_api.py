@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+from app.services.rag_service import rag_chat
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.concurrency import run_in_threadpool
 # 导入service里的上传处理函数
@@ -51,4 +53,24 @@ async def upload_and_process_pdf(file: UploadFile = File(...)):
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"PDF处理失败：{str(e)}")
+
+class ChatRequest(BaseModel):
+    question: str
+    top_k: int = 3
+
+@router.post("/chat")
+async def chat(req: ChatRequest):
+    try:
+        result = await run_in_threadpool(rag_chat, req.question, req.top_k)
+        return{
+            "statusCode": 200,
+            "question": req.question,
+            "answer": result["answer"],
+            "sources": result["sources"]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"回答失败：{str(e)}")
+
 
