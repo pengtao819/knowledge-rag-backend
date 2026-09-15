@@ -2,15 +2,18 @@ import os
 import re
 import pdfplumber
 import chromadb
-from typing import List
+from typing import List, TypedDict, Annotated
 from fastapi import UploadFile
 from config import settings
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.tools import tool
+from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode
 
 # 上传目录
 UPLOAD_FOLDER = './uploads'
@@ -212,7 +215,7 @@ def retrieve_chunks(question: str, top_k=3, max_distance: float = 0.65) -> List[
     return docs
 
 # RAG回答
-def rag_chat(question: str, top_k=3) -> dict:
+async def rag_chat(question: str, top_k=3) -> dict:
     # 检索
     docs = retrieve_chunks(question, top_k)
     if not docs:
@@ -243,7 +246,7 @@ def rag_chat(question: str, top_k=3) -> dict:
         base_url=settings.OPENAI_BASE_URL,
         temperature=0   # 稳定性高，准确
     )
-    response = llm.invoke([
+    response = await llm.ainvoke([
         SystemMessage(content=system_prompt),
         HumanMessage(content=user_prompt)
     ])
@@ -265,12 +268,45 @@ def rag_chat(question: str, top_k=3) -> dict:
         "sources": sources
     }
 
+# 检索工具
+@tool
+def retrieve_knowledge_base(query: str) -> str:
+    """从知识库中检索与用户问题相关的内容。
 
+    当用户询问知识库中可能存在的具体信息时使用这个工具，比如概念解释、文档内容查询等。
 
+        Args:
+            query: 用户的查询问题，用自然语言描述
+    """
+    docs = retrieve_chunks(query)
+    if not docs:
+        return "知识库中未找到相关内容"
 
+    results = []
+    for i, doc in enumerate(docs, start=1):
+        results.append(
+            f"[{i}] 来源：{doc.metadata['source']} "
+            f"第{doc.metadata['page']}页\n{doc.page_content}"
+        )
 
+    return "\n\n".join(results)
 
+# 列举文档工具
+@tool
+def list_documents() -> str:
+    """列出知识库中所有已上传的文档。
 
+    当用户询问"知识库中有哪些文档"、"已经上传了什么资料"、"文档列表"等问题时使用这个工具。
+    """
+    collection = get_chroma_collection()
+    data = collection.get(include=["metadatas"])
 
+    if not data["metadatas"]:
+        return "知识库目前没有任何文档。"
 
+    sources = set()     # 去重
+    for meta in data["metadatas"]:
+        sources.add(meta["source"])
 
+    doc_list = "\n".join(f"- {s}" for s in sources)
+    return f"知识库中的文档列表：\n{doc_list}"

@@ -1,7 +1,10 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+
+load_dotenv(BASE_DIR / ".env")
 
 class Settings():
     # embedding(百炼)
@@ -13,12 +16,12 @@ class Settings():
     CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "500"))
     CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "100"))
 
-    # chroma
-    CHROMA_DIR: str = os.getenv("CHROMA_DIR", "./chroma_db")
+    # chroma(改为绝对路径）
+    CHROMA_DIR: str = os.getenv("CHROMA_DIR", str(BASE_DIR / "chroma_db"))
     CHROMA_COLLECTION: str = os.getenv("CHROMA_COLLECTION", "knowledge_base")
 
     # 上传
-    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
+    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", str(BASE_DIR / "uploads"))
 
     # LLM
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")

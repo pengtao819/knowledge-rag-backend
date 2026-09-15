@@ -13,3 +13,4 @@ aiomysql
 tenacity
 langchain-text-splitters
 langchain-community
+langchain-chroma

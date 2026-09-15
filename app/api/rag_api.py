@@ -1,3 +1,5 @@
+import asyncio
+
 from pydantic import BaseModel
 from app.services.rag_service import rag_chat
 from fastapi import APIRouter, UploadFile, File, HTTPException
@@ -61,13 +63,18 @@ class ChatRequest(BaseModel):
 @router.post("/chat")
 async def chat(req: ChatRequest):
     try:
-        result = await run_in_threadpool(rag_chat, req.question, req.top_k)
+        result = await asyncio.wait_for(
+            rag_chat(req.question, req.top_k),
+            timeout=60      # 整个请求不超过60秒
+        )
         return{
             "statusCode": 200,
             "question": req.question,
             "answer": result["answer"],
             "sources": result["sources"]
         }
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="请求超时，请重试")
     except HTTPException:
         raise
     except Exception as e:
