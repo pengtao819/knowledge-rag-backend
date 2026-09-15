@@ -1,0 +1,23 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class Settings():
+    # embedding(百炼)
+    DASHSCOPE_API_KEY: str = os.getenv("DASHSCOPE_API_KEY", "")
+    DASHSCOPE_BASE_URL: str = os.getenv("DASHSCOPE_BASE_URL", "")
+    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "qwen3.7-text-embedding-flash")
+
+    # 分块
+    CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "500"))
+    CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "100"))
+
+    # chroma
+    CHROMA_DIR: str = os.getenv("CHROMA_DIR", "./chroma_db")
+    CHROMA_COLLECTION: str = os.getenv("CHROMA_COLLECTION", "knowledge_base")
+
+    # 上传
+    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
+
+settings = Settings()

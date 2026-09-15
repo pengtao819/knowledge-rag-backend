@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.concurrency import run_in_threadpool
 # 导入service里的上传处理函数
-from app.services.rag_service import save_upload_pdf, parse_pdf
+from app.services.rag_service import save_upload_pdf, parse_pdf, chunking_pdf, store_chunks_to_chroma
 import os
 
 router = APIRouter(prefix="/rag", tags=["RAG知识库"])
@@ -33,15 +33,20 @@ async def upload_and_process_pdf(file: UploadFile = File(...)):
 
         # 分块
         chunks = await run_in_threadpool(chunking_pdf, docs)
+        if not chunks:
+            raise HTTPException(status_code=400, datail="分块结果为空")
+
+        # 向量化并存入chroma
+        stored_count = await run_in_threadpool(store_chunks_to_chroma, chunks)
 
         return {
             "filename": file.filename,
-            "is_new_upload": not file_exist,
             "pages": len(docs),
             "chunks": len(chunks),
-            "text_preview": chunks[0].page_content[:300] if chunks else "",
+            "stored_to_chroma": stored_count,
             "msg": msg
         }
+
     except HTTPException:
         raise
     except Exception as e:

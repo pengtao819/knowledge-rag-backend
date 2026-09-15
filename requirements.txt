@@ -12,3 +12,4 @@ python-dotenv
 aiomysql
 tenacity
 langchain-text-splitters
+langchain-community
