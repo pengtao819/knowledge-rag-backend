@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 UPLOAD_FOLDER = './uploads'
 # os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+EMBEDDING_BATCH_SIZE = 20   # 模块级常量
+
 # 中文分隔符-优先级
 CHINESE_SEPARATORS = [
     "\n\n",
@@ -60,7 +62,11 @@ def get_chroma_collection():
     client = get_chroma_client()
     return client.get_or_create_collection(
         name=settings.CHROMA_COLLECTION,
-        metadata={"hnsw:space": "cosine"},  # 用余弦相似度
+        metadata={
+            "hnsw:space": "cosine",
+            "hnsw:num_threads": 1,          # 单线程写入，避免并发冲突
+            "hnsw:sync_threshold": 10000,   # 减少自动压缩频率
+        },
     )
 
  # 获取配置好的embedding模型
@@ -161,9 +167,6 @@ def store_chunks_to_chroma(chunks: List[Document]) -> int:
     # 提取文本
     texts = [chunk.page_content for chunk in chunks]
 
-    # 批量向量化
-    vectors = embedding_model.embed_documents(texts)
-
     # 构造对应格式
     ids = [
         f"{chunk.metadata['source']}_p{chunk.metadata['page']}_c{chunk.metadata['chunk_index']}"
@@ -178,11 +181,20 @@ def store_chunks_to_chroma(chunks: List[Document]) -> int:
         for chunk in chunks
     ]
 
+    # 分批调用 embedding，每批最多 20 条
+    all_vectors = []
+    total = len(texts)
+    for i in range(0, total, EMBEDDING_BATCH_SIZE):
+        batch = texts[i: i + EMBEDDING_BATCH_SIZE]
+        batch_vectors = embedding_model.embed_documents(batch)
+        all_vectors.extend(batch_vectors)
+        logger.info("向量化进度: %d/%d", min(i + EMBEDDING_BATCH_SIZE, total), total)
+
     # 存入chroma（后续改）
     collection.add(
         ids=ids,            # id
         documents=texts,    # 原文
-        embeddings=vectors, # 向量
+        embeddings=all_vectors, # 向量
         metadatas=metadatas  # 元数据
     )
 

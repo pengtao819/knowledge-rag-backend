@@ -43,7 +43,12 @@ def setup_logging():
         "openai", "urllib3", "chromadb",
         "asyncio", "watchfiles",
         "sqlalchemy", "aiomysql",
+        "pdfminer", "pdfplumber"
     ]:
         logging.getLogger(name).setLevel(logging.WARNING)
+
+    # pdfminer 的字体警告是噪音，直接压到 ERROR
+    logging.getLogger("pdfminer").setLevel(logging.ERROR)
+    logging.getLogger("pdfplumber").setLevel(logging.ERROR)
 
     logger.info("日志系统初始化完成")
