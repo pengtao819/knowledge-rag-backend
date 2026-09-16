@@ -13,6 +13,8 @@ from app.services.rag_service import rag_chat, rewrite_question
 from app.services.chat_service import create_conversation, save_message, get_history, list_conversations
 from app.core.exceptions import ConversationNotFoundError
 from app.schemas.models import ChatRequest
+from fastapi.responses import StreamingResponse
+from app.services.rag_service import rag_chat_stream
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +111,27 @@ async def chat(req: ChatRequest, db: AsyncSession = Depends(get_db)):
         "answer": result["answer"],
         "sources": result["sources"]
     }
+
+# 流式回答
+@router.post("/chat/stream")
+async def chat_stream(req: ChatRequest, db: AsyncSession = Depends(get_db)):
+    logger.info("收到流式问答请求: question=%s", req.question)
+
+    if not req.conversation_id:
+        conv = await create_conversation(db, title=req.question)
+        conversation_id = conv.id
+        history = []
+    else:
+        conversation_id = req.conversation_id
+        history = await get_history(db, conversation_id, limit=10)
+
+    await save_message(db, conversation_id, "user", req.question)
+    rewritten = await rewrite_question(req.question, history)
+
+    return StreamingResponse(
+        rag_chat_stream(rewritten, history, conversation_id, req.top_k),
+        media_type="text/event-stream",
+    )
 
 @router.get("/history/{conversation_id}")
 async def history(conversation_id: int, db: AsyncSession = Depends(get_db)):

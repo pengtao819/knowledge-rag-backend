@@ -4,6 +4,7 @@ import pdfplumber
 import chromadb
 import textwrap
 import logging
+import json
 from typing import List, TypedDict, Annotated
 from fastapi import UploadFile
 from config import settings
@@ -18,6 +19,9 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.tools import tool
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
+from fastapi.responses import StreamingResponse
+from app.db.database import AsyncSessionLocal
+from app.services.chat_service import save_message
 
 logger = logging.getLogger(__name__)
 
@@ -327,14 +331,12 @@ def list_documents() -> str:
     doc_list = "\n".join(f"- {s}" for s in sources)
     return f"知识库中的文档列表：\n{doc_list}"
 
-
 # 指代词列表，问题里出现这些词就需要改写
 PRONOUNS = ["它", "他", "她", "这个", "那个", "上述", "该", "此", "这"]
 
 def need_rewrite(question: str) -> bool:
     # 判断问题里有没有指代词
     return any(p in question for p in PRONOUNS)
-
 
 async def rewrite_question(question: str, history: list) -> str:
   # 没有历史 或 问题里没指代词 → 原样返回，不改写
@@ -379,4 +381,68 @@ async def rewrite_question(question: str, history: list) -> str:
     logger.info("改写完成: %s → %s", question, result)
 
     return result
+
+def _sse(data: dict) -> str:
+    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+async def rag_chat_stream(question: str, history: list, conversation_id: int, top_k: int = 5):
+    try:
+        docs = retrieve_chunks(question, top_k)
+        sources = [
+            {
+                "index": i,
+                "source": doc.metadata["source"],
+                "page": doc.metadata["page"],
+                "chunk_index": doc.metadata["chunk_index"],
+                "preview": doc.page_content[:100],
+            }
+            for i, doc in enumerate(docs, start=1)
+        ]
+        yield _sse({"type": "sources", "data": sources})
+
+        if not docs:
+            answer = "根据当前知识库无法确定。"
+            yield _sse({"type": "token", "data": answer})
+            yield _sse({"type": "done", "conversation_id": conversation_id})
+            async with AsyncSessionLocal() as db:
+                await save_message(db, conversation_id, "assistant", answer, sources=[])
+            return
+
+        context = "\n\n".join(f"[{i}] {d.page_content}" for i, d in enumerate(docs, start=1))
+
+        history_text = ""
+        if history:
+            history_text = "\n".join(f"{m.role}: {m.content}" for m in history[-4:])
+            history_text = f"之前的对话：\n{history_text}\n\n"
+
+        system_prompt = (
+            "你是一个知识库助手。请严格根据下面提供的上下文回答用户问题。"
+            "如果上下文没有相关信息，就回答'根据当前知识库无法确定'。"
+            "回答时请用 [1] [2] 这样的编号引用来源。"
+            "不要编造上下文中没有的内容。"
+        )
+        user_prompt = f"{history_text}上下文：\n{context}\n\n用户问题：{question}"
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt),
+        ]
+
+        full_answer = ""
+        async for chunk in llm.astream(messages):
+            if chunk.content:
+                full_answer += chunk.content
+                yield _sse({"type": "token", "data": chunk.content})
+
+        async with AsyncSessionLocal() as db:
+            await save_message(db, conversation_id, "assistant", full_answer, sources=sources)
+
+        yield _sse({"type": "done", "conversation_id": conversation_id})
+
+    except Exception as e:
+        logger.exception("流式问答失败")
+        yield _sse({"type": "error", "data": str(e)})
+
+
+
 
