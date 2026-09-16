@@ -10,15 +10,15 @@
 
 ### Swagger 接口文档
 
-![Swagger](docs/swagger.png)
+![swagger](C:\Users\bb439\PycharmProjects\基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统\docs\swagger.png)
 
 ### RAG 问答（带引用来源）
 
-![RAG Chat](docs/rag-chat.png)
+![rag-chat](C:\Users\bb439\PycharmProjects\基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统\docs\rag-chat.png)
 
 ### Agent 自主调用工具
 
-![Agent Chat](docs/agent-chat.png)
+![agent-chat](C:\Users\bb439\PycharmProjects\基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统\docs\agent-chat.png)
 
 ## 核心功能
 
