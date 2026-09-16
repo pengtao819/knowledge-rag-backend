@@ -2,9 +2,11 @@ import os
 import re
 import pdfplumber
 import chromadb
+import textwrap
 from typing import List, TypedDict, Annotated
 from fastapi import UploadFile
 from config import settings
+from app.services.llm_client import llm, call_llm_async
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -193,11 +195,6 @@ def retrieve_chunks(question: str, top_k=3, max_distance: float = 0.65) -> List[
         include=["documents", "metadatas", "distances"]
     )
 
-    # 加这行，看实际 distance
-    print("=== 查询:", question, "===")
-    for text, dist in zip(results["documents"][0], results["distances"][0]):
-        print(f"distance={dist:.4f} | {text[:50]}")
-
     # 包装成Document列表
     docs = []
     for text, meta, dist in zip(
@@ -215,7 +212,7 @@ def retrieve_chunks(question: str, top_k=3, max_distance: float = 0.65) -> List[
     return docs
 
 # RAG回答
-async def rag_chat(question: str, top_k=3) -> dict:
+async def rag_chat(question: str, top_k=3, history: list = None) -> dict:
     # 检索
     docs = retrieve_chunks(question, top_k)
     if not docs:
@@ -229,6 +226,15 @@ async def rag_chat(question: str, top_k=3) -> dict:
     for i, doc in enumerate(docs, start=1):
         context_parts.append(f"[{i}] {doc.page_content}")
     context = "\n\n".join(context_parts)
+
+    # 拼接历史
+    history_text = ""
+    if history:
+        history_text = "\n".join(
+            f"{m.role}: {m.content}" for m in history[-4:]
+        )
+        history_text = f"之前的对话：\n{history_text}\n\n"
+
 
     # 构造prompt
     system_prompt = (
@@ -310,3 +316,53 @@ def list_documents() -> str:
 
     doc_list = "\n".join(f"- {s}" for s in sources)
     return f"知识库中的文档列表：\n{doc_list}"
+
+
+# 指代词列表，问题里出现这些词就需要改写
+PRONOUNS = ["它", "他", "她", "这个", "那个", "上述", "该", "此", "这"]
+
+def need_rewrite(question: str) -> bool:
+    # 判断问题里有没有指代词
+    return any(p in question for p in PRONOUNS)
+
+
+async def rewrite_question(question: str, history: list) -> str:
+  # 没有历史 或 问题里没指代词 → 原样返回，不改写
+    if not history or not need_rewrite(question):
+        return question
+
+    # 把最近 4 条历史拼成文本
+    history_text = "\n".join(
+        f"{m.role}: {m.content}" for m in history[-4:]
+    )
+
+
+    prompt = textwrap.dedent(f"""
+        你是一个问题改写助手。请根据历史对话，把用户当前问题中的指代词替换成具体的内容。
+        历史对话： {history_text}
+        用户当前问题：{question}
+        要求：
+        1. 当前问题中的"它"、"这个"、"那个"、"上述"等指代词，必须根据历史对话还原成具体名词。
+        2. 如果当前问题没有指代词，原样返回。
+        3. 只输出改写后的问题，不要任何解释、标点补充或前缀。
+
+        示例：
+        历史对话： user: 什么是RAG assistant: RAG是检索增强生成技术...
+        用户当前问题：它有什么作用
+        改写后：RAG有什么作用
+
+        现在请改写：
+        改写后：
+        """).strip()
+
+    response = await call_llm_async(llm, [HumanMessage(content=prompt)])
+    result = response.content.strip()
+
+    # 清理 LLM 可能加的前缀
+    if result.startswith("改写后："):
+        result = result[4:].strip()
+    if result.startswith("改写后:"):
+        result = result[4:].strip()
+
+    return result
+

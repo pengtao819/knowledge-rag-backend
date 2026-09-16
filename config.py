@@ -28,4 +28,8 @@ class Settings():
     OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "")
     LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen3.8-max-0902")
 
+    # mysql
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+
+
 settings = Settings()
