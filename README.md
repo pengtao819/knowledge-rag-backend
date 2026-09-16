@@ -1,127 +1,313 @@
-## 一、项目定位
+# 知识库智能问答后端系统
 
-**做一个基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统**  
-这个项目能覆盖你目前的技术栈，并且直接对标 AI 应用开发 / 大模型后端实习岗位。
+基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统，支持 PDF 上传解析、RAG 检索问答、Agent 自主工具调用、多轮对话与持久化。
 
-核心功能：  
+## 项目背景
 
-- 上传 PDF 文档，系统解析并向量化存储  
-- 用户提问时，通过 RAG（检索增强生成）从知识库检索相关内容，调用大模型生成回答  
-- 集成一个简易 Agent，能自动判断是否需要调用工具（如搜索知识库、查询文档列表）  
-- 用 MySQL 持久化对话记录，支持多轮对话  
-- 封装异步 LLM 调用，增加超时、异常处理和重试机制  
-- 设计防幻觉机制，提高回答可信度
+大语言模型存在三个硬伤：知识有截止日期、无法访问私有数据、容易产生幻觉。本系统通过 RAG（检索增强生成）技术，让 LLM 能够基于用户上传的私有文档回答问题，并附上引用来源，可追溯、可验证。
 
----
+## 效果展示
 
-## 二、项目需要实现的功能模块
+### Swagger 接口文档
 
-| 模块               | 具体内容                                                     |
-| ------------------ | ------------------------------------------------------------ |
-| **文档上传与解析** | 接收 PDF 文件，提取文本，进行分块（chunk）                   |
-| **向量化与存储**   | 将文本块转为向量，存入向量数据库（推荐 Chroma）              |
-| **RAG 问答**       | 用户提问 → 检索 top-k 相关片段 → 拼接 Prompt → 调用 LLM 生成回答，并附引用来源 |
-| **Agent 工具调用** | 使用 LangGraph 定义流程，根据用户问题自动调用工具（如检索知识库、获取文档列表） |
-| **异步 LLM 封装**  | 使用异步客户端调用大模型，设置超时（如10秒），捕获异常，失败自动重试 |
-| **对话持久化**     | 用 SQLAlchemy 异步操作 MySQL，保存每轮对话和元数据，支持历史查询 |
-| **防幻觉机制**     | 在 Prompt 中限制回答范围，要求引用来源；可加后处理检测回答与上下文一致性 |
-| **API 接口**       | `/upload` 上传文档；`/chat` 对话（支持流式输出）；`/history` 查询历史记录 |
+![swagger](C:\Users\bb439\PycharmProjects\基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统\docs\swagger.png)
 
----
+### RAG 问答（带引用来源）
 
+![rag-chat](C:\Users\bb439\PycharmProjects\基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统\docs\rag-chat.png)
 
-**检索距离分布**
-有答案问题 distance ≤ 0.57
-无答案问题 distance ≥ 0.76
-阈值 0.65
+### Agent 自主调用工具
 
-## 三、技术栈清单
+![agent-chat](C:\Users\bb439\PycharmProjects\基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统\docs\agent-chat.png)
 
-- **后端框架**：FastAPI（异步）
-- **AI 框架**：LangChain（文档加载、分割、检索链）、LangGraph（Agent 状态图）
-- **大模型**：OpenAI API 或兼容接口（也可用开源模型，如 ChatGLM、Qwen）
-- **向量数据库**：Chroma（轻量、易持久化）
-- **数据库**：MySQL（异步驱动 aiomysql + SQLAlchemy）
-- **其他库**：PyPDF2 / pdfplumber（PDF解析）、sentence-transformers（本地向量化，可选）、tenacity（重试）
-- **部署**：Docker（可选）、云服务器或 Render/Railway 免费部署
+## 核心功能
 
----
+- **文档处理**：上传 PDF，自动解析、清洗、分块、向量化入库
+- **RAG 问答**：语义检索 + 阈值过滤 + LLM 生成，回答带引用来源
+- **防幻觉机制**：三层防护，知识库外的问题稳定返回"无法确定"
+- **LangGraph Agent**：LLM 自主决策调用工具（知识库检索、文档列表查询）
+- **多轮对话**：会话持久化 + 问题改写，支持指代词消解
+- **异步架构**：全链路异步 + 超时 + 重试 + 全局异常处理
+- **可观测性**：结构化日志 + 业务异常分层
 
-## 四、开发步骤（按周执行）
+## 技术栈
 
-### 第 1 周：基础骨架 + RAG 核心
+| 模块       | 技术                                     |
+| ---------- | ---------------------------------------- |
+| Web 框架   | FastAPI（异步）                          |
+| AI 编排    | LangChain、LangGraph                     |
+| 大模型     | 通义千问 qwen3.8-max（OpenAI 兼容接口）  |
+| Embedding  | 阿里云百炼 qwen3.7-text-embedding-flash  |
+| 向量数据库 | Chroma（本地持久化）                     |
+| 关系数据库 | MySQL + SQLAlchemy 2.0（异步）+ aiomysql |
+| PDF 解析   | PyMuPDF（fitz）                          |
+| 重试机制   | tenacity                                 |
+| 日志       | Python logging + RotatingFileHandler     |
 
-- 搭建 FastAPI 项目结构
-- 实现 PDF 上传、解析、分块
-- 接入向量数据库，完成文本向量化存储（阿里云百炼）
-- 实现最简单的 RAG 问答（同步调用 LLM）
-- 测试上传文档后能回答问题
-
-### 第 2 周：Agent + 异步 + 防幻觉
-
-- 引入 LangGraph，定义 Agent 流程，集成 1~2 个工具（如知识库检索）
-
-- 将 LLM 调用改为异步，添加超时、异常捕获和重试
-
-- 优化 Prompt，加入“仅根据上下文回答”和“引用来源”要求
-
-- 设计简单的防幻觉后处理（如检查回答中是否包含未在上下文中出现的实体）
-
-               ┌─────────────┐
-    用户问题→│  agent 节点  │ ← LLM 判断下一步
-               └──────┬──────┘
-                      │
-                条件边判断
-               ┌──────┴──────┐
-               ↓             ↓
-           要调工具       要回答
-               ↓             ↓
-           ┌────────┐    ┌─────┐
-           │tool 节点│    │ END │
-           └────┬───┘    └─────┘
-                │
-                └──→ 回到 agent 节点（循环）
-   
-   
-   开发顺序：
-   
-   **第 1 步：定义工具**
-   
-   把你现在的 `retrieve_chunks` 包成一个 LangChain Tool，加一个 `list_documents` 工具。
-   
-   **第 2 步：定义 State**
-   
-   一个字典结构，至少包含：`question`、`messages`、`tool_results`。
-   
-   **第 3 步：写 agent 节点**
-   
-   调 LLM，把工具列表一起传，让 LLM 决定下一步。
-   
-   **第 4 步：写 tool 节点**
-   
-   解析 LLM 的工具调用请求，执行对应工具，把结果写回 State。
-   
-   **第 5 步：定义条件边**
-   
-   判断 LLM 输出是"要调工具"还是"要回答"，决定跳 tool 节点还是 END。
-   
-   **第 6 步：编译成图并测试**
-   
-   测三类问题：
-   
-   - 需要检索的（"什么是RAG"）
-   - 需要其他工具的（"知识库有哪些文档"）
-   - 不需要工具的（"你好"）
-
-
-### 第 3 周：MySQL 持久化 + 完善接口
-
-- 使用 SQLAlchemy 异步定义对话表、消息表
-- 实现对话记录自动保存
-- 增加 `/history` 查询接口
-- 完善错误处理和日志
-- 写 README，说明项目功能、技术栈、运行方法
+## 系统架构
 
 
 
+┌─────────────┐
+│  用户请求    │
+└──────┬──────┘
+       │
+   ┌───▼────────────────────────┐
+   │   FastAPI 路由层            │
+   │   /upload  /chat  /agent    │
+   └───┬────────────────────────┘
+       │
+   ┌───▼────────────────────────┐
+   │   Service 业务层            │
+   │   ├─ rag_service (RAG)     │
+   │   ├─ agent_service (Agent) │
+   │   ├─ chat_service (持久化)  │
+   │   └─ llm_client (LLM 封装) │
+   └───┬────────────────────────┘
+       │
+   ┌───▼──────┐  ┌──────────┐  ┌────────┐
+   │  Chroma  │  │  MySQL   │  │  LLM   │
+   │ 向量数据库│  │ 对话持久化│  │ 百炼API│
+   └──────────┘  └──────────┘  └────────┘
+
+
+
+## 目录结构
+
+├── main.py                       # FastAPI 入口，lifespan 注册
+├── config.py                     # 配置管理（.env 加载）
+├── requirements.txt
+├── .env.example                  # 环境变量模板
+├── .gitignore
+├── app/
+│   ├── api/
+│   │   ├── rag_api.py            # RAG 接口：上传、问答、历史
+│   │   └── agent_api.py          # Agent 接口
+│   ├── services/
+│   │   ├── rag_service.py        # PDF 解析、分块、向量化、检索
+│   │   ├── agent_service.py      # LangGraph Agent 编排
+│   │   ├── chat_service.py       # 对话持久化 CRUD
+│   │   └── llm_client.py         # LLM 异步封装（超时 + 重试）
+│   ├── db/
+│   │   └── database.py           # SQLAlchemy 异步引擎与模型
+│   ├── core/
+│   │   ├── logging.py            # 日志配置
+│   │   └── exceptions.py         # 业务异常定义
+│   └── schemas/
+│       └── models.py             # Pydantic 模型
+├── uploads/                      # 上传 PDF 存储（gitignore）
+├── chroma_db/                    # 向量库持久化（gitignore）
+└── logs/                         # 日志文件（gitignore）
+
+## 快速开始
+
+### 1. 环境要求
+
+- Python 3.10+
+- MySQL 8.0+
+
+### 2. 克隆项目
+
+```bash
+git clone <your-repo-url>
+cd <project-dir>
+```
+
+### 3. 创建虚拟环境并安装依赖
+
+```bash
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# macOS / Linux
+source .venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+### 4. 创建数据库
+
+```sql
+CREATE DATABASE rag_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+### 5. 配置环境变量
+
+复制 `.env.example` 为 `.env`，填入你的配置：
+
+```bash
+cp .env.example .env
+```
+
+`.env` 内容示例：
+
+```bash
+# 阿里云百炼（Embedding + LLM 共用同一个 Key）
+DASHSCOPE_API_KEY=sk-xxxxxxxx
+DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+EMBEDDING_MODEL=qwen3.7-text-embedding-flash
+
+# LLM
+OPENAI_API_KEY=sk-xxxxxxxx
+OPENAI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+LLM_MODEL=qwen3.8-max-0902
+
+# MySQL
+DATABASE_URL=mysql+aiomysql://root:your_password@localhost:3306/rag_db?charset=utf8mb4
+
+# 分块参数
+CHUNK_SIZE=500
+CHUNK_OVERLAP=100
+
+# Chroma
+CHROMA_COLLECTION=knowledge_base
+```
+
+### 6. 启动服务
+
+```bash
+uvicorn main:app --reload
+```
+
+启动后访问：
+
+- 接口文档：http://127.0.0.1:8000/docs
+
+## API 接口
+
+| 方法 | 路径                             | 说明                                 |
+| ---- | -------------------------------- | ------------------------------------ |
+| POST | `/rag/upload`                    | 上传 PDF，解析、分块、向量化入库     |
+| POST | `/rag/chat`                      | RAG 问答（支持多轮对话）             |
+| POST | `/agent/chat`                    | Agent 模式问答（LLM 自主决策调工具） |
+| GET  | `/rag/history/{conversation_id}` | 查询指定会话历史消息                 |
+| GET  | `/rag/conversations`             | 查询会话列表                         |
+
+### 示例：RAG 问答
+
+**请求**
+
+```bash
+curl -X POST 'http://127.0.0.1:8000/rag/chat' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "question": "什么是RAG",
+    "top_k": 3
+  }'
+```
+
+**响应**
+
+```json
+{
+  "statusCode": 200,
+  "question": "什么是RAG",
+  "answer": "RAG 是检索增强生成... [1][2]",
+  "sources": [
+    {
+      "index": 1,
+      "source": "text.pdf",
+      "page": 1,
+      "chunk_index": 0,
+      "preview": "..."
+    }
+  ]
+}
+```
+
+**多轮对话**：第一次请求返回 `conversation_id`，后续请求带上它即可延续对话：
+
+```json
+{
+  "question": "它有什么作用",
+  "conversation_id": 9
+}
+```
+
+系统会自动结合历史理解"它"指的是什么。
+
+## 关键技术点
+
+### 1. PDF 文本清洗
+
+PyMuPDF 提取的文本存在两类问题：
+
+- 中文行内换行导致句子断裂
+- 中英文边界缺少空格
+
+通过正则清洗：删除中文行内换行、保留段落换行、中英文边界补空格。
+
+### 2. 中文友好的分块
+
+使用 `RecursiveCharacterTextSplitter` + 自定义分隔符优先级：
+
+```
+["\n\n", "\n", "。", "！", "？", "；", "，", ". ", " ", ""]
+```
+
+块大小 500 字符，重叠 100 字符。相比默认英文分隔符，中文检索质量显著提升。
+
+### 3. 三层防幻觉机制
+
+| 层级      | 措施                          | 效果               |
+| --------- | ----------------------------- | ------------------ |
+| 检索层    | 余弦距离阈值过滤（实测 0.65） | 不相关内容不进 LLM |
+| Prompt 层 | 明确要求"没答案就说不知道"    | 约束 LLM 行为      |
+| 输出层    | 引用编号对应真实来源          | 用户可核对         |
+
+阈值基于实测：有答案问题 distance ≤ 0.57，无答案问题 distance ≥ 0.76。
+
+### 4. 多轮对话的问题改写
+
+用户第二句常带指代词（"它"、"这个"）。直接向量化无实体语义，检索失败。系统先让 LLM 结合历史改写问题：
+
+```
+"它有什么作用" → "RAG有什么作用"
+```
+
+用改写后的问题检索，命中率明显提升。
+
+### 5. LangGraph Agent
+
+用状态图编排 Agent 流程：
+
+```
+START → agent_node ─┬→ tool_node → agent_node（循环）
+                    └→ END
+```
+
+- LLM 通过 Function Calling 自主决定调用哪个工具
+- 条件边根据 LLM 输出决定循环还是结束
+- 最大循环次数保护，防止死循环
+
+集成工具：
+- `retrieve_knowledge_base`：语义检索
+- `list_documents`：列出所有文档
+
+### 6. 异步 + 超时 + 重试
+
+- 全链路 `async/await`，同步阻塞库用 `run_in_threadpool` 隔离
+- 单次 LLM 调用：tenacity 指数退避重试 3 次，超时 30 秒
+- 整体请求：`asyncio.wait_for` 超时控制（RAG 60s / Agent 120s）
+
+### 7. 分层错误处理
+
+- `AppError` 业务异常基类，子类自带 HTTP 状态码
+- 全局异常处理器统一捕获，业务异常记 WARNING，未知异常记 ERROR + 完整堆栈
+- 不向前端暴露内部堆栈，避免信息泄露
+
+## 项目亮点
+
+- **完整的 RAG 链路**：从 PDF 解析到向量化、检索、生成、引用的闭环
+- **可量化的防幻觉**：基于实测 distance 分布定阈值，不是拍脑袋
+- **多轮对话**：问题改写 + 历史上下文，真正支持连续对话
+- **Agent 能力**：不只是固定 RAG 链路，LLM 能自主选择工具
+- **生产级考量**：异步、超时、重试、日志、异常处理，接近线上项目
+
+## 后续规划
+
+- [ ] 流式输出（SSE），提升首字响应体验
+- [ ] Docker 部署，提供在线 Demo
+- [ ] 检索重排序（Rerank），提升 top-k 精度
+- [ ] 用户认证与多租户隔离
 

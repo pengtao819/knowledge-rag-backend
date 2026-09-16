@@ -12,16 +12,12 @@ from app.db.database import get_db
 from app.services.rag_service import rag_chat, rewrite_question
 from app.services.chat_service import create_conversation, save_message, get_history, list_conversations
 from app.core.exceptions import ConversationNotFoundError
+from app.schemas.models import ChatRequest
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/rag", tags=["RAG知识库"])
 UPLOAD_FOLDER = './uploads'
-
-class ChatRequest(BaseModel):
-    question: str
-    top_k: int = 3
-    conversation_id: int | None = None
 
 # PDF处理
 @router.post("/upload")
@@ -114,7 +110,7 @@ async def chat(req: ChatRequest, db: AsyncSession = Depends(get_db)):
         "sources": result["sources"]
     }
 
-@router.get("history/{conversation_id}")
+@router.get("/history/{conversation_id}")
 async def history(conversation_id: int, db: AsyncSession = Depends(get_db)):
     messages = await get_history(db, conversation_id)
 
