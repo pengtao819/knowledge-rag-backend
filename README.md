@@ -7,18 +7,15 @@
 大语言模型存在三个硬伤：知识有截止日期、无法访问私有数据、容易产生幻觉。本系统通过 RAG（检索增强生成）技术，让 LLM 能够基于用户上传的私有文档回答问题，并附上引用来源，可追溯、可验证。
 
 ## 效果展示
-
 ### Swagger 接口文档
 
-![swagger](C:\Users\bb439\PycharmProjects\基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统\docs\swagger.png)
 
 ### RAG 问答（带引用来源）
 
-![rag-chat](C:\Users\bb439\PycharmProjects\基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统\docs\rag-chat.png)
 
 ### Agent 自主调用工具
 
-![agent-chat](C:\Users\bb439\PycharmProjects\基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统\docs\agent-chat.png)
+
 
 ## 核心功能
 
