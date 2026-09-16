@@ -3,10 +3,12 @@ import re
 import pdfplumber
 import chromadb
 import textwrap
+import logging
 from typing import List, TypedDict, Annotated
 from fastapi import UploadFile
 from config import settings
 from app.services.llm_client import llm, call_llm_async
+from app.core.exceptions import RetrievalError
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -16,6 +18,8 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.tools import tool
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
+
+logger = logging.getLogger(__name__)
 
 # 上传目录
 UPLOAD_FOLDER = './uploads'
@@ -182,34 +186,40 @@ def store_chunks_to_chroma(chunks: List[Document]) -> int:
 
 # 检索函数
 def retrieve_chunks(question: str, top_k=3, max_distance: float = 0.65) -> List[Document]:
-    collection = get_chroma_collection()
-    embedding_model = get_embedding_model()
+    try:
+        collection = get_chroma_collection()
+        embedding_model = get_embedding_model()
 
-    # 将问题转向量
-    query_vector = embedding_model.embed_query(question)
+        # 将问题转向量
+        query_vector = embedding_model.embed_query(question)
 
-    # 在chroma里检索
-    results = collection.query(
-        query_embeddings=[query_vector],
-        n_results=top_k,
-        include=["documents", "metadatas", "distances"]
-    )
+        # 在chroma里检索
+        results = collection.query(
+            query_embeddings=[query_vector],
+            n_results=top_k,
+            include=["documents", "metadatas", "distances"]
+        )
 
-    # 包装成Document列表
-    docs = []
-    for text, meta, dist in zip(
-        results["documents"][0],
-        results["metadatas"][0],
-        results["distances"][0]
-    ):
-        if dist > max_distance:     # 距离大于0.65（测试得来的数值），直接丢弃
-            continue
-        docs.append(Document(
-            page_content=text,
-            metadata={**meta, "distance": dist}
-        ))
+        # 包装成Document列表
+        docs = []
+        for text, meta, dist in zip(
+            results["documents"][0],
+            results["metadatas"][0],
+            results["distances"][0]
+        ):
+            if dist > max_distance:     # 距离大于0.65（测试得来的数值），直接丢弃
+                continue
+            docs.append(Document(
+                page_content=text,
+                metadata={**meta, "distance": dist}
+            ))
 
-    return docs
+        logger.info("检索: question=%s, 命中 %d 条", question, len(docs))
+
+        return docs
+    except Exception as e:
+        logger.exception("检索失败: %s", e)
+        raise RetrievalError() from e
 
 # RAG回答
 async def rag_chat(question: str, top_k=3, history: list = None) -> dict:
@@ -331,6 +341,8 @@ async def rewrite_question(question: str, history: list) -> str:
     if not history or not need_rewrite(question):
         return question
 
+    logger.info("问题改写: %s", question)
+
     # 把最近 4 条历史拼成文本
     history_text = "\n".join(
         f"{m.role}: {m.content}" for m in history[-4:]
@@ -363,6 +375,8 @@ async def rewrite_question(question: str, history: list) -> str:
         result = result[4:].strip()
     if result.startswith("改写后:"):
         result = result[4:].strip()
+
+    logger.info("改写完成: %s → %s", question, result)
 
     return result
 

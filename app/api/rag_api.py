@@ -1,6 +1,7 @@
 import os
 import asyncio
 import json
+import logging
 from pydantic import BaseModel
 from app.services.rag_service import rag_chat
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
@@ -10,6 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_db
 from app.services.rag_service import rag_chat, rewrite_question
 from app.services.chat_service import create_conversation, save_message, get_history, list_conversations
+from app.core.exceptions import ConversationNotFoundError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/rag", tags=["RAG知识库"])
 UPLOAD_FOLDER = './uploads'
@@ -67,50 +71,48 @@ async def upload_and_process_pdf(file: UploadFile = File(...)):
 # RAG检索
 @router.post("/chat")
 async def chat(req: ChatRequest, db: AsyncSession = Depends(get_db)):
-    try:
-        # 如果没有conversation_id就新建会话
-        if not req.conversation_id:
-            conv = await create_conversation(db, title=req.question)
-            conversation_id = conv.id
-            history = []
-        else:
-            conversation_id = req.conversation_id
-            history = await get_history(db, conversation_id, limit=10)
+    logger.info("收到问答请求: question=%s, conversation_id=%s", req.question, req.conversation_id)
 
-        # 保存用户消息
-        await save_message(db, conversation_id, "user", req.question)
+    if req.conversation_id:
+        conv_exists = await get_history(db, req.conversation_id, limit=1)
+        if not conv_exists:
+            raise ConversationNotFoundError(f"会话 {req.conversation_id} 不存在")
 
-        # 问题改写（有指代词才改）
-        rewritten = await rewrite_question(req.question, history)
+    # 如果没有conversation_id就新建会话
+    if not req.conversation_id:
+        conv = await create_conversation(db, title=req.question)
+        conversation_id = conv.id
+        history = []
+    else:
+        conversation_id = req.conversation_id
+        history = await get_history(db, conversation_id, limit=10)
 
-        # 调用RAG回答问题
-        result = await asyncio.wait_for(
-            rag_chat(rewritten, req.top_k, history),
-            timeout=60      # 整个请求不超过60秒
-        )
+    # 保存用户消息
+    await save_message(db, conversation_id, "user", req.question)
 
-        # 保存助手回答
-        await save_message(
-            db,
-            conversation_id,
-            "assistant",
-            result["answer"],
-            sources=result["sources"]
-        )
+    # 问题改写（有指代词才改）
+    rewritten = await rewrite_question(req.question, history)
 
-        return{
-            "statusCode": 200,
-            "question": req.question,
-            "answer": result["answer"],
-            "sources": result["sources"]
-        }
+    # 调用RAG回答问题
+    result = await asyncio.wait_for(
+        rag_chat(rewritten, req.top_k, history),
+        timeout=60      # 整个请求不超过60秒
+    )
 
-    except asyncio.TimeoutError:
-        raise HTTPException(status_code=504, detail="请求超时，请重试")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"回答失败：{str(e)}")
+    # 保存助手回答
+    await save_message(
+        db,conversation_id,"assistant",
+        result["answer"],sources=result["sources"]
+    )
+
+    logger.info("问答完成: conversation_id=%s, sources=%d", conversation_id, len(result["sources"]))
+
+    return{
+        "statusCode": 200,
+        "question": req.question,
+        "answer": result["answer"],
+        "sources": result["sources"]
+    }
 
 @router.get("history/{conversation_id}")
 async def history(conversation_id: int, db: AsyncSession = Depends(get_db)):
