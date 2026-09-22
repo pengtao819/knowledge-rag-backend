@@ -36,15 +36,17 @@ async def get_history(
     conversation_id: int,
     limit: int = 20
 ) -> list[Message]:
-    # 取某个会话的历史消息，按时间正序
+    # 取最近 limit 条历史，按时间正序返回（供多轮上下文使用）
     stmt = (
         select(Message)
         .where(Message.conversation_id == conversation_id)
-        .order_by(Message.created_at.asc())     # 时间正序
+        .order_by(Message.created_at.desc())    # 先倒序取最近的 limit 条
         .limit(limit)
     )
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    messages = list(result.scalars().all())
+    messages.reverse()     # 反转为时间正序，保证上下文顺序正确
+    return messages
 
 async def list_conversations(db: AsyncSession, limit: int=20) -> list[Conversation]:
     # 列出最近会话

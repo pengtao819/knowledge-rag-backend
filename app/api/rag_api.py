@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 from pydantic import BaseModel
+from config import settings
 from app.services.rag_service import rag_chat
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.concurrency import run_in_threadpool
@@ -19,7 +20,7 @@ from app.services.rag_service import rag_chat_stream
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/rag", tags=["RAG知识库"])
-UPLOAD_FOLDER = './uploads'
+UPLOAD_FOLDER = settings.UPLOAD_DIR
 
 # PDF处理
 @router.post("/upload")
@@ -48,7 +49,7 @@ async def upload_and_process_pdf(file: UploadFile = File(...)):
         # 分块
         chunks = await run_in_threadpool(chunking_pdf, docs)
         if not chunks:
-            raise HTTPException(status_code=400, datail="分块结果为空")
+            raise HTTPException(status_code=400, detail="分块结果为空")
 
         # 向量化并存入chroma
         stored_count = await run_in_threadpool(store_chunks_to_chroma, chunks)

@@ -2,9 +2,10 @@ fastapi
 uvicorn[standard]
 langchain
 langchain-openai
+openai
 langgraph
 chromadb
-pypdf
+pdfplumber
 sqlalchemy
 pydantic
 python-multipart

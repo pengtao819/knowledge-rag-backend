@@ -1,6 +1,6 @@
 from typing import TypedDict, Annotated
 from langgraph.graph.message import add_messages
-from langchain_core.messages import ToolMessage, HumanMessage
+from langchain_core.messages import ToolMessage, HumanMessage, AIMessage
 from langgraph.graph import StateGraph, START, END
 from langchain_openai import ChatOpenAI
 from config import settings
@@ -112,12 +112,19 @@ def build_agent_graph():
 
 agent_graph = build_agent_graph()
 
-async def run_agent(question: str) -> dict:
-    # 初始状态，只放一条用户消息
+async def run_agent(question: str, history: list = None) -> dict:
+    # 初始消息：历史对话 + 当前问题，让 Agent 支持多轮（指代词消解）
+    messages = []
+    if history:
+        for m in history:
+            if m.role == "user":
+                messages.append(HumanMessage(content=m.content))
+            else:
+                messages.append(AIMessage(content=m.content))
+    messages.append(HumanMessage(content=question))
+
     initial_state = {
-        "messages": [HumanMessage(content=question)],
-        # 我比较喜欢qwen展开的形式（可改）
-        # SystemMessage(content="你是一个知识库助手。回答要简洁，直接给要点，不要过度展开")
+        "messages": messages,
         "loop_count": 0
     }
 
@@ -133,9 +140,8 @@ async def run_agent(question: str) -> dict:
     else:
         answer = final_message.content
 
-
     return {
-        "answer": final_message.content,
+        "answer": answer,
         "messages_count": len(final_state["messages"]),
         "loop_count": final_state["loop_count"]
     }

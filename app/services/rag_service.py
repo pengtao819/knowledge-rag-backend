@@ -14,7 +14,6 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.tools import tool
 from langgraph.graph.message import add_messages
@@ -25,9 +24,9 @@ from app.services.chat_service import save_message
 
 logger = logging.getLogger(__name__)
 
-# 上传目录
-UPLOAD_FOLDER = './uploads'
-# os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# 上传目录（用配置的绝对路径，避免依赖启动时的工作目录）
+UPLOAD_FOLDER = settings.UPLOAD_DIR
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 EMBEDDING_BATCH_SIZE = 20   # 模块级常量
 
@@ -269,16 +268,10 @@ async def rag_chat(question: str, top_k=3, history: list = None) -> dict:
         "回答时请用 [1] [2] 这样的编号引用来源。"
         "不需要讨好用户，不要编造上下文中没有的内容。"
     )
-    user_prompt = f"上下文：\n{context}\n\n用户问题：{question}"
+    user_prompt = f"{history_text}上下文：\n{context}\n\n用户问题：{question}"
 
-    # 调用LLM
-    llm = ChatOpenAI(
-        model=settings.LLM_MODEL,
-        api_key=settings.OPENAI_API_KEY,
-        base_url=settings.OPENAI_BASE_URL,
-        temperature=0   # 稳定性高，准确
-    )
-    response = await llm.ainvoke([
+    # 调用LLM（复用带超时+重试的封装，与流式路径行为一致）
+    response = await call_llm_async(llm, [
         SystemMessage(content=system_prompt),
         HumanMessage(content=user_prompt)
     ])

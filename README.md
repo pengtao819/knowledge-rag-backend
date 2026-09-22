@@ -10,20 +10,21 @@
 
 ### Swagger 接口文档
 
-![swagger](C:\Users\bb439\PycharmProjects\基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统\docs\swagger.png)
+![swagger](docs/swagger.png)
 
 ### RAG 问答（带引用来源）
 
-![rag-chat](C:\Users\bb439\PycharmProjects\基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统\docs\rag-chat.png)
+![rag-chat](docs/rag-chat.png)
 
 ### Agent 自主调用工具
 
-![agent-chat](C:\Users\bb439\PycharmProjects\基于 FastAPI + LangChain + LangGraph 的知识库智能问答后端系统\docs\agent-chat.png)
+![agent-chat](docs/agent-chat.png)
 
 ## 核心功能
 
 - **文档处理**：上传 PDF，自动解析、清洗、分块、向量化入库
 - **RAG 问答**：语义检索 + 阈值过滤 + LLM 生成，回答带引用来源
+- **流式输出**：SSE 流式返回回答，提升首字响应体验
 - **防幻觉机制**：三层防护，知识库外的问题稳定返回"无法确定"
 - **LangGraph Agent**：LLM 自主决策调用工具（知识库检索、文档列表查询）
 - **多轮对话**：会话持久化 + 问题改写，支持指代词消解
@@ -40,7 +41,7 @@
 | Embedding  | 阿里云百炼 qwen3.7-text-embedding-flash  |
 | 向量数据库 | Chroma（本地持久化）                     |
 | 关系数据库 | MySQL + SQLAlchemy 2.0（异步）+ aiomysql |
-| PDF 解析   | PyMuPDF（fitz）                          |
+| PDF 解析   | pdfplumber                              |
 | 重试机制   | tenacity                                 |
 | 日志       | Python logging + RotatingFileHandler     |
 
@@ -179,6 +180,7 @@ uvicorn main:app --reload
 | ---- | -------------------------------- | ------------------------------------ |
 | POST | `/rag/upload`                    | 上传 PDF，解析、分块、向量化入库     |
 | POST | `/rag/chat`                      | RAG 问答（支持多轮对话）             |
+| POST | `/rag/chat/stream`               | RAG 流式问答（SSE）                  |
 | POST | `/agent/chat`                    | Agent 模式问答（LLM 自主决策调工具） |
 | GET  | `/rag/history/{conversation_id}` | 查询指定会话历史消息                 |
 | GET  | `/rag/conversations`             | 查询会话列表                         |
@@ -230,7 +232,7 @@ curl -X POST 'http://127.0.0.1:8000/rag/chat' \
 
 ### 1. PDF 文本清洗
 
-PyMuPDF 提取的文本存在两类问题：
+pdfplumber 提取的文本存在两类问题：
 
 - 中文行内换行导致句子断裂
 - 中英文边界缺少空格
@@ -284,6 +286,8 @@ START → agent_node ─┬→ tool_node → agent_node（循环）
 - `retrieve_knowledge_base`：语义检索
 - `list_documents`：列出所有文档
 
+支持多轮对话：历史消息会注入到 Agent 的消息列表，结合上下文理解指代词。
+
 ### 6. 异步 + 超时 + 重试
 
 - 全链路 `async/await`，同步阻塞库用 `run_in_threadpool` 隔离
@@ -306,7 +310,6 @@ START → agent_node ─┬→ tool_node → agent_node（循环）
 
 ## 后续规划
 
-- [ ] 流式输出（SSE），提升首字响应体验
 - [ ] Docker 部署，提供在线 Demo
 - [ ] 检索重排序（Rerank），提升 top-k 精度
 - [ ] 用户认证与多租户隔离
