@@ -1,0 +1,394 @@
+[
+  {
+    "id": 1,
+    "question": "向量空间模型（VSM）最早是由谁提出的？",
+    "ground_truth": "向量空间模型（Vector Space Model, VSM）是 NLP 领域中基础且强大的文本表示方法，最早由哈佛大学的 Salton 提出。",
+    "keywords": [
+      "向量空间模型",
+      "VSM",
+      "Salton"
+    ],
+    "category": "simple_fact",
+    "source_page": 12
+  },
+  {
+    "id": 2,
+    "question": "Word2Vec 词嵌入技术是由谁在哪一年提出的？",
+    "ground_truth": "Word2Vec 是一种流行的词嵌入（Word Embedding）技术，由 Tomas Mikolov 等人在 2013 年提出。",
+    "keywords": [
+      "Word2Vec",
+      "Tomas Mikolov",
+      "2013"
+    ],
+    "category": "simple_fact",
+    "source_page": 13
+  },
+  {
+    "id": 3,
+    "question": "注意力机制包含哪三个核心变量？",
+    "ground_truth": "注意力机制有三个核心变量：Query（查询值）、Key（键值）和 Value（真值）。",
+    "keywords": [
+      "注意力机制",
+      "Query",
+      "Key",
+      "Value"
+    ],
+    "category": "simple_fact",
+    "source_page": 16
+  },
+  {
+    "id": 4,
+    "question": "Transformer 中的 Encoder 和 Decoder 各由多少个 Layer 组成？",
+    "ground_truth": "Transformer 由 Encoder 和 Decoder 组成，每一个 Encoder（Decoder）又由 6 个 Encoder（Decoder）Layer 组成。",
+    "keywords": [
+      "Transformer",
+      "Encoder",
+      "Decoder",
+      "6个Layer"
+    ],
+    "category": "simple_fact",
+    "source_page": 22
+  },
+  {
+    "id": 5,
+    "question": "BERT-base 版本有多少层 Encoder Layer、隐藏层维度和总参数量？",
+    "ground_truth": "BERT-base 版本有 12 层 Encoder Layer、768 的隐藏层维度，总参数量为 110M。",
+    "keywords": [
+      "BERT-base",
+      "12层",
+      "768",
+      "110M"
+    ],
+    "category": "simple_fact",
+    "source_page": 34
+  },
+  {
+    "id": 6,
+    "question": "BERT 的 MLM 预训练中，被选中的 token 分别以多大概率被遮蔽、替换为随机 token 或保持不变？",
+    "ground_truth": "被选中的 token 有 80% 的概率被遮蔽，10% 的概率被替换为任意一个 token，还有 10% 的概率保持不变。",
+    "keywords": [
+      "BERT",
+      "MLM",
+      "80%",
+      "10%"
+    ],
+    "category": "simple_fact",
+    "source_page": 38
+  },
+  {
+    "id": 7,
+    "question": "GPT-3 的整体参数量是多少？",
+    "ground_truth": "GPT-3 的整体参数量达 175B（1750 亿），书中称其为当之无愧的“大型语言模型”。",
+    "keywords": [
+      "GPT-3",
+      "175B",
+      "参数量"
+    ],
+    "category": "simple_fact",
+    "source_page": 51
+  },
+  {
+    "id": 8,
+    "question": "书中对 LLM（大语言模型）的参数规模是怎样界定的？",
+    "ground_truth": "一般来说，LLM 指包含数百亿（或更多）参数的语言模型，它们往往在数 T token 语料上通过多卡分布式集群进行预训练。",
+    "keywords": [
+      "LLM",
+      "数百亿参数",
+      "数T token"
+    ],
+    "category": "simple_fact",
+    "source_page": 58
+  },
+  {
+    "id": 9,
+    "question": "书中如何定义涌现能力（Emergent Abilities）？",
+    "ground_truth": "涌现能力是指同样的模型架构与预训练任务下，某些能力在小型模型中不明显，但在大型模型中特别突出，书中将其类比为物理学中的相变现象，它是 LLM 区别于传统 PLM 的最显著特征。",
+    "keywords": [
+      "涌现能力",
+      "Emergent Abilities",
+      "相变现象"
+    ],
+    "category": "simple_fact",
+    "source_page": 59
+  },
+  {
+    "id": 10,
+    "question": "书中自定义的 LLaMA2 配置（ModelConfig）中，模型维度 dim、层数 n_layers、注意力头数 n_heads 和词表大小 vocab_size 的默认值分别是多少？",
+    "ground_truth": "默认值分别是 dim=768（模型维度）、n_layers=12（Transformer 层数）、n_heads=16（注意力头数）、vocab_size=6144（词汇表大小）。",
+    "keywords": [
+      "ModelConfig",
+      "dim=768",
+      "n_layers=12",
+      "n_heads=16",
+      "vocab_size=6144"
+    ],
+    "category": "simple_fact",
+    "source_page": 75
+  },
+  {
+    "id": 11,
+    "question": "第五章从零预训练的小型 LLM 实际参数量是多少？",
+    "ground_truth": "本次预训练得到的模型共有 215.127M（约 215M）参数。",
+    "keywords": [
+      "215M",
+      "模型参数量",
+      "小型LLM"
+    ],
+    "category": "simple_fact",
+    "source_page": 120
+  },
+  {
+    "id": 12,
+    "question": "LoRA 微调中的秩 r 一般情况下取哪些值？书中用 peft 实现时的配置是多少？",
+    "ground_truth": "一般情况下 r 取 4、8、16；书中使用 peft 的示例配置为 r=8、lora_alpha=32、lora_dropout=0.1。",
+    "keywords": [
+      "LoRA",
+      "秩r",
+      "lora_alpha",
+      "peft"
+    ],
+    "category": "simple_fact",
+    "source_page": 143
+  },
+  {
+    "id": 13,
+    "question": "SFT 训练中，目前主流 LLM 的 IGNORE_TOKEN_ID 一般设置为多少？",
+    "ground_truth": "目前主流 LLM 的 IGNORE_TOKEN_ID 一般设置为 -100，用于忽略不需要计算 loss 的文本部分。",
+    "keywords": [
+      "SFT",
+      "IGNORE_TOKEN_ID",
+      "-100",
+      "loss"
+    ],
+    "category": "simple_fact",
+    "source_page": 137
+  },
+  {
+    "id": 14,
+    "question": "Tiny-RAG 包含哪五个基本模块？",
+    "ground_truth": "Tiny-RAG 包含向量化模块、文档加载和切分模块、数据库、检索模块、大模型模块五个部分。",
+    "keywords": [
+      "Tiny-RAG",
+      "向量化模块",
+      "检索模块",
+      "大模型模块"
+    ],
+    "category": "simple_fact",
+    "source_page": 154
+  },
+  {
+    "id": 15,
+    "question": "书中是如何定义 LLM Agent 的？",
+    "ground_truth": "大模型 Agent 是一个以 LLM 为核心“大脑”，并赋予其自主规划、记忆和使用工具能力的系统。",
+    "keywords": [
+      "LLM Agent",
+      "自主规划",
+      "记忆",
+      "工具使用"
+    ],
+    "category": "simple_fact",
+    "source_page": 162
+  },
+  {
+    "id": 16,
+    "question": "BERT 和 GPT 在模型架构和预训练任务上有什么差异？",
+    "ground_truth": "BERT 仅选择 Encoder 层并将其堆叠，提出掩码语言模型（MLM）作为预训练任务，拟合双向语义；GPT 则选择 Decoder 层，沿用原有的语言模型（LM/CLM）任务，做单向的预测生成。",
+    "keywords": [
+      "BERT",
+      "GPT",
+      "Encoder-Only",
+      "Decoder-Only",
+      "MLM",
+      "CLM"
+    ],
+    "category": "comparison",
+    "source_page": 32
+  },
+  {
+    "id": 17,
+    "question": "RoBERTa 相对 BERT 做了哪些主要改进？",
+    "ground_truth": "RoBERTa 去掉了 NSP 任务只保留 MLM，把 Mask 操作放到训练阶段（动态遮蔽策略），把预训练数据扩大到 160GB（十倍于 BERT），使用 8K 的大 batch size（BERT 为 256），并把 BPE 词表从 30K 扩大到 50K。",
+    "keywords": [
+      "RoBERTa",
+      "BERT",
+      "NSP",
+      "动态遮蔽",
+      "160GB",
+      "50K词表"
+    ],
+    "category": "comparison",
+    "source_page": 39
+  },
+  {
+    "id": 18,
+    "question": "ALBERT 是通过哪些手段减少模型参数量的？与 BERT 相比效果如何？",
+    "ground_truth": "ALBERT 有两个主要手段：一是把 Embedding 层的参数矩阵进行分解，让 Embedding 输出维度（设为 128）与隐藏层维度解绑，从而大幅减少 Embedding 参数；二是让各 Encoder 层跨层共享参数，因此虽是 24 层 Encoder 的模型却只有一层 Encoder 的参数，xlarge 版本仅 59M 参数但效果优于 BERT。",
+    "keywords": [
+      "ALBERT",
+      "Embedding参数分解",
+      "跨层参数共享",
+      "59M"
+    ],
+    "category": "comparison",
+    "source_page": 40
+  },
+  {
+    "id": 19,
+    "question": "针对全量微调开销大的问题，书中介绍了哪两种高效微调方案？它们各自的缺点是什么？",
+    "ground_truth": "两种方案是 Adapt Tuning（在模型每层插入 Adapter 模块，微调时冻结模型主体只训练 Adapter 参数）和 Prefix Tuning（为每个输入 token 前构造一段与任务相关的 virtual tokens 作为前缀，只更新 prefix 参数）。Adapt Tuning 因增加额外参数和计算量而存在推理延迟，微调后模型比原预训练模型更慢；Prefix Tuning 的缺陷是 virtual tokens 占用可用序列长度，微调质量越高可用序列长度越低。",
+    "keywords": [
+      "全量微调",
+      "Adapt Tuning",
+      "Prefix Tuning",
+      "推理延迟"
+    ],
+    "category": "comparison",
+    "source_page": 140
+  },
+  {
+    "id": 20,
+    "question": "Word-based、Character-based 和 Subword 三种 Tokenizer 有什么区别？",
+    "ground_truth": "Word-based 按空格和标点把文本切分成单词，最简单直观；Character-based 把每个字符视为一个独立 token，能精细处理拼写错误、未登录词和新词，但 token 序列会变得非常长、增加计算复杂度和训练时间，还可能丢失词级语义信息；Subword（子词）切分介于两者之间，常见方法包括 BPE、WordPiece 和 Unigram。",
+    "keywords": [
+      "Tokenizer",
+      "Word-based",
+      "Character-based",
+      "Subword",
+      "BPE"
+    ],
+    "category": "comparison",
+    "source_page": 88
+  },
+  {
+    "id": 21,
+    "question": "第二章讲的 Transformer 位置编码和第五章 LLaMA2 使用的位置编码有什么不同？它们分别解决什么问题？",
+    "ground_truth": "第二章指出注意力机制计算时序列中各位置彼此平等、会丢失相对位置信息（“我喜欢你”和“你喜欢我”相同），因此 Transformer 采用位置编码机制，用正余弦函数实现绝对位置编码（Sinusoidal），把位置编码加入词向量；第五章的 LLaMA2 则使用旋转嵌入（RoPE），它能为注意力机制提供更强的上下文信息从而提高模型性能。",
+    "keywords": [
+      "位置编码",
+      "Sinusoidal",
+      "RoPE",
+      "旋转嵌入",
+      "相对位置"
+    ],
+    "category": "multi_hop",
+    "source_page": 26
+  },
+  {
+    "id": 22,
+    "question": "第三章介绍的 BERT 预训练目标，与第四章说的主流 LLM 预训练任务有什么不同？",
+    "ground_truth": "第三章的 BERT 在 Encoder 层堆叠的基础上提出掩码语言模型（MLM）作为预训练任务，用于拟合双向语义；第四章则指出目前主流 LLM 几乎都采用 Decoder-Only 的类 GPT 架构（LLaMA 架构），其预训练任务沿承了 GPT 的因果语言模型（CLM），即给出上文要求模型预测下一个 token。",
+    "keywords": [
+      "MLM",
+      "CLM",
+      "因果语言模型",
+      "Decoder-Only",
+      "预训练任务"
+    ],
+    "category": "multi_hop",
+    "source_page": 32
+  },
+  {
+    "id": 23,
+    "question": "第四章介绍的 DeepSpeed ZeRO 三个阶段分别分片了什么？第六章实际训练时使用的是哪个阶段？",
+    "ground_truth": "第四章：ZeRO-1 对模型状态中的 Adam 状态参数进行分片（其他参数每张卡仍保留一份），ZeRO-2 继续对模型梯度分片（每张卡只存梯度和 Adam 状态），ZeRO-3 连模型参数也进行分片；第六章 6.1.5 实际训练使用 ZeRO-2，并将 ds_config_zero.json 作为 DeepSpeed 配置，其中 zero_optimization 的 stage 设为 2。",
+    "keywords": [
+      "ZeRO-1",
+      "ZeRO-2",
+      "ZeRO-3",
+      "DeepSpeed",
+      "stage"
+    ],
+    "category": "multi_hop",
+    "source_page": 64
+  },
+  {
+    "id": 24,
+    "question": "第四章说 LLM 一般通过几个阶段来训练？第六章讲的 Pretrain 与 SFT 在建模方式和 loss 计算上又有什么区别？",
+    "ground_truth": "第四章：目前成型的 LLM 一般通过 Pretrain-SFT-RLHF 三个阶段来训练；第六章进一步说明 Pretrain 和 SFT 均使用 CLM 建模，核心差异在于 Pretrain 使用海量无监督文本、对全部文本计算 loss，而 SFT 使用构建成对的指令对数据、只对输出计算 loss 而不计算指令部分的 loss。",
+    "keywords": [
+      "Pretrain-SFT-RLHF",
+      "CLM",
+      "loss",
+      "指令微调"
+    ],
+    "category": "multi_hop",
+    "source_page": 62
+  },
+  {
+    "id": 25,
+    "question": "第四章提到的“幻觉”问题是什么？第七章的 RAG 又是如何缓解它的？",
+    "ground_truth": "第四章：幻觉是指 LLM 根据 Prompt 杜撰生成虚假、错误信息的表现（如捏造看似一本正经实则不存在的论文），它是 LLM 的固有缺陷，Prompt 限制、通过 RAG 指导生成等方法都只能一定程度减弱而无法彻底根除；第七章：RAG 在生成答案之前先从外部大规模文档数据库中检索出相关信息并融入生成过程，使生成的内容建立在真实文档的基础上，从而有效缓解幻觉并提升答案的可追溯性。",
+    "keywords": [
+      "幻觉",
+      "RAG",
+      "检索增强生成",
+      "真实文档"
+    ],
+    "category": "multi_hop",
+    "source_page": 61
+  },
+  {
+    "id": 26,
+    "question": "书中给出的 GPT-4 具体参数量是多少？",
+    "ground_truth": "文档中查不到该信息。GPT-4 只在发展脉络、Copilot 案例、英文语料占比、指令数据生成等语境中被提及名称，全书没有给出它的参数量。正确行为是说明文档未提供，而不是编造一个数字。",
+    "keywords": [
+      "GPT-4",
+      "参数量",
+      "文档未提及"
+    ],
+    "category": "out_of_scope",
+    "source_page": null
+  },
+  {
+    "id": 27,
+    "question": "书中介绍的 QLoRA 微调把模型权重量化到多少 bit？",
+    "ground_truth": "文档中查不到该信息。QLoRA 只出现在第六章的目录/章节标题“预训练、有监督微调、LoRA/QLoRA 高效微调”中，正文只讲解了 LoRA 的原理与代码实现，没有介绍 QLoRA 的量化方法或 bit 数。正确行为是说明文档正文未涉及。",
+    "keywords": [
+      "QLoRA",
+      "量化",
+      "bit",
+      "文档未提及"
+    ],
+    "category": "out_of_scope",
+    "source_page": null
+  },
+  {
+    "id": 28,
+    "question": "Tiny-RAG 在第一轮检索之后使用了哪个重排序（Rerank）模型来提升精度？",
+    "ground_truth": "文档中查不到该信息。Tiny-RAG 只有向量化、文档加载和切分、数据库、检索、大模型五个模块，检索模块直接用 Query 向量在数据库中检索相关文档片段，全书没有出现“重排序/Rerank”环节。正确行为是指出文档未涉及该环节，而不是编造一个 rerank 模型名。",
+    "keywords": [
+      "Rerank",
+      "重排序",
+      "Tiny-RAG",
+      "文档未提及"
+    ],
+    "category": "out_of_scope",
+    "source_page": null
+  },
+  {
+    "id": 29,
+    "question": "书中介绍的 Mixtral 8x7B 采用混合专家（MoE）架构，它的每个 token 会激活多少参数？",
+    "ground_truth": "文档中查不到该信息。全书没有出现 Mixtral、MoE 或混合专家架构的内容，介绍的预训练语言模型都是稠密模型（BERT、RoBERTa、ALBERT、T5、GPT、LLaMA、GLM）。正确行为是说明文档不含该内容。",
+    "keywords": [
+      "Mixtral",
+      "MoE",
+      "混合专家",
+      "文档未提及"
+    ],
+    "category": "out_of_scope",
+    "source_page": null
+  },
+  {
+    "id": 30,
+    "question": "LLaMA2 中的 ALiBi 位置编码是如何实现的？",
+    "ground_truth": "文档中查不到该信息，且问题前提有误：书中第五章的 LLaMA2 使用的是旋转位置编码（RoPE），全书从未提到 ALiBi。正确行为是指出前提不成立并说明书中 LLaMA2 用的是 RoPE，而不是顺着错误前提编造实现细节。",
+    "keywords": [
+      "ALiBi",
+      "位置编码",
+      "RoPE",
+      "文档未提及"
+    ],
+    "category": "out_of_scope",
+    "source_page": null
+  }
+]

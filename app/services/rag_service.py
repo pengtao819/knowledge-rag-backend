@@ -5,6 +5,7 @@ import chromadb
 import textwrap
 import logging
 import json
+import unicodedata
 from typing import List, TypedDict, Annotated
 from fastapi import UploadFile
 from config import settings
@@ -96,6 +97,8 @@ async def save_upload_pdf(upload_file: UploadFile):
 
 # 文本处理
 def clean_text(text: str) -> str:
+    #  0.Unicode 规范化(去除异形字的影响)
+    text = unicodedata.normalize('NFKC', text)
     # 1.中英文换行 -> 空格
     text = re.sub(r'(?<=[\u4e00-\u9fff])\n(?=[A-Za-z0-9])', ' ', text)
     text = re.sub(r'(?<=[A-Za-z0-9])\n(?=[\u4e00-\u9fff])', ' ', text)

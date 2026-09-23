@@ -48,14 +48,14 @@
 ## 系统架构
 
 
-
+```
 ┌─────────────┐
 │  用户请求    │
 └──────┬──────┘
        │
    ┌───▼────────────────────────┐
    │   FastAPI 路由层            │
-   │   /upload  /chat  /agent    │
+   │   /upload  /chat  /agent   │
    └───┬────────────────────────┘
        │
    ┌───▼────────────────────────┐
@@ -63,17 +63,17 @@
    │   ├─ rag_service (RAG)     │
    │   ├─ agent_service (Agent) │
    │   ├─ chat_service (持久化)  │
-   │   └─ llm_client (LLM 封装) │
+   │   └─ llm_client (LLM 封装)  │
    └───┬────────────────────────┘
        │
    ┌───▼──────┐  ┌──────────┐  ┌────────┐
    │  Chroma  │  │  MySQL   │  │  LLM   │
-   │ 向量数据库│  │ 对话持久化│  │ 百炼API│
+   │ 向量数据库 │  │  对话持久化│  │  百炼API│
    └──────────┘  └──────────┘  └────────┘
-
-
+```
 
 ## 目录结构
+```
 
 ├── main.py                       # FastAPI 入口，lifespan 注册
 ├── config.py                     # 配置管理（.env 加载）
@@ -96,9 +96,21 @@
 │   │   └── exceptions.py         # 业务异常定义
 │   └── schemas/
 │       └── models.py             # Pydantic 模型
+├── scripts/                    ← 新增
+│   ├── build_eval_set.py         # 生成测试问题集（或者手工构造 50 条）
+│   ├── run_evaluation.py         # 跑评估，调 RAG 接口，计算三项指标 
+│   ├── analyze_badcase.py        # 从评估结果里挑出错误案例，分类分析
+│   └── diagnose_pdf.py           # 诊断 PDF 每页文本质量
+
+├── data/                      
+│   └── eval_questions.json       # # 50 条测试问题 + 标准答案
+├── results/                        
+│   └── eval_report.json          # 评估输出
 ├── uploads/                      # 上传 PDF 存储（gitignore）
 ├── chroma_db/                    # 向量库持久化（gitignore）
 └── logs/                         # 日志文件（gitignore）
+
+```
 
 ## 快速开始
 
