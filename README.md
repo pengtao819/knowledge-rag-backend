@@ -8,17 +8,17 @@
 
 ## 效果展示
 
-### Swagger 接口文档
+### Streamlit 前端 - RAG 模式
 
-![swagger](docs/swagger.png)
+![rag-mode](docs/streamlit-rag.png)
 
-### RAG 问答（带引用来源）
+### Streamlit 前端 - Agent 模式（带引用来源）
 
-![rag-chat](docs/rag-chat.png)
+![agent-mode](docs/streamlit-agent.png)
 
-### Agent 自主调用工具
+### Docker 一键部署
 
-![agent-chat](docs/agent-chat.png)
+![docker](docs/docker.png)
 
 ## 核心功能
 
