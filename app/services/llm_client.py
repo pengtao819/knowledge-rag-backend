@@ -10,8 +10,8 @@ from config import settings
 
 
 # 配置
-LLM_TIMEOUT = 30       # 单次 LLM 调用超时（秒）
-MAX_RETRIES = 3        # 最大重试次数
+LLM_TIMEOUT = 60       # 单次 LLM 调用超时（秒）
+MAX_RETRIES = 2        # 最大重试次数
 
 def create_llm() -> ChatOpenAI:
     return ChatOpenAI(
@@ -21,6 +21,7 @@ def create_llm() -> ChatOpenAI:
         temperature=0,
         timeout=LLM_TIMEOUT,
         max_retries=0,   # 关掉 SDK 自带重试，统一用 tenacity 管
+        max_tokens=1024  # 限制输出长度
     )
 
 # 模块级 LLM 实例，全局复用

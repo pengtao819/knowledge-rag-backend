@@ -95,7 +95,7 @@ async def chat(req: ChatRequest, db: AsyncSession = Depends(get_db)):
     # 调用RAG回答问题
     result = await asyncio.wait_for(
         rag_chat(rewritten, req.top_k, history),
-        timeout=60      # 整个请求不超过60秒
+        timeout=180      # 迎合宽松提示词回答
     )
 
     # 保存助手回答

@@ -30,6 +30,8 @@
 - **多轮对话**：会话持久化 + 问题改写，支持指代词消解
 - **异步架构**：全链路异步 + 超时 + 重试 + 全局异常处理
 - **可观测性**：结构化日志 + 业务异常分层
+- **Docker 一键部署**：`docker compose up --build` 启动 FastAPI + MySQL + Chroma 完整服务栈
+- **RAG 评估体系**：30 条测试问题量化评估，回答准确率 95.65%，知识库外拒答率 100%
 
 ## 技术栈
 
@@ -44,6 +46,8 @@
 | PDF 解析   | pdfplumber                              |
 | 重试机制   | tenacity                                 |
 | 日志       | Python logging + RotatingFileHandler     |
+| 容器化     | Docker + Docker Compose                  |
+
 
 ## 系统架构
 
@@ -78,37 +82,28 @@
 ├── main.py                       # FastAPI 入口，lifespan 注册
 ├── config.py                     # 配置管理（.env 加载）
 ├── requirements.txt
+├── Dockerfile                    # 镜像构建
+├── docker-compose.yml            # 服务编排（API + MySQL）
+├── .dockerignore
 ├── .env.example                  # 环境变量模板
-├── .gitignore
 ├── app/
-│   ├── api/
-│   │   ├── rag_api.py            # RAG 接口：上传、问答、历史
-│   │   └── agent_api.py          # Agent 接口
-│   ├── services/
-│   │   ├── rag_service.py        # PDF 解析、分块、向量化、检索
-│   │   ├── agent_service.py      # LangGraph Agent 编排
-│   │   ├── chat_service.py       # 对话持久化 CRUD
-│   │   └── llm_client.py         # LLM 异步封装（超时 + 重试）
-│   ├── db/
-│   │   └── database.py           # SQLAlchemy 异步引擎与模型
-│   ├── core/
-│   │   ├── logging.py            # 日志配置
-│   │   └── exceptions.py         # 业务异常定义
-│   └── schemas/
-│       └── models.py             # Pydantic 模型
-├── scripts/                    ← 新增
-│   ├── build_eval_set.py         # 生成测试问题集（或者手工构造 50 条）
-│   ├── run_evaluation.py         # 跑评估，调 RAG 接口，计算三项指标 
-│   ├── analyze_badcase.py        # 从评估结果里挑出错误案例，分类分析
-│   └── diagnose_pdf.py           # 诊断 PDF 每页文本质量
-
-├── data/                      
-│   └── eval_questions.json       # # 50 条测试问题 + 标准答案
-├── results/                        
-│   └── eval_report.json          # 评估输出
-├── uploads/                      # 上传 PDF 存储（gitignore）
-├── chroma_db/                    # 向量库持久化（gitignore）
-└── logs/                         # 日志文件（gitignore）
+│   ├── api/                      # 路由层
+│   ├── services/                 # 业务逻辑
+│   ├── db/                       # 数据库层
+│   ├── core/                     # 日志、异常
+│   └── schemas/                  # Pydantic 模型
+├── scripts/                      # 数据与评估脚本
+│   ├── extract_pdf_text.py       # 提取 PDF 全文
+│   ├── diagnose_pdf.py           # 诊断 PDF 文本质量
+│   ├── verify_eval_set.py        # 验证测试集 keywords
+│   ├── run_evaluation.py         # 跑评估，算三项指标
+│   └── show_badcases.py          # 展示错误案例
+├── data/                         # 测试集与知识库文本
+│   └── eval_questions.json       # 30 条测试问题
+├── results/                      # 评估报告输出
+│   └── eval_report.json
+└── docs/                         # 文档
+    └── experiment_log.md         # 实验记录
 
 ```
 
@@ -176,26 +171,30 @@ CHUNK_OVERLAP=100
 CHROMA_COLLECTION=knowledge_base
 ```
 
-### 6. 启动服务
+### 6. Docker 部署（推荐）
+确保 Docker Desktop 已启动，然后：
+```bash
+docker compose up --build
+```
 
+### 7. 本地开发（可选）
 ```bash
 uvicorn main:app --reload
 ```
 
 启动后访问：
-
 - 接口文档：http://127.0.0.1:8000/docs
 
 ## API 接口
 
-| 方法 | 路径                             | 说明                                 |
-| ---- | -------------------------------- | ------------------------------------ |
-| POST | `/rag/upload`                    | 上传 PDF，解析、分块、向量化入库     |
-| POST | `/rag/chat`                      | RAG 问答（支持多轮对话）             |
-| POST | `/rag/chat/stream`               | RAG 流式问答（SSE）                  |
-| POST | `/agent/chat`                    | Agent 模式问答（LLM 自主决策调工具） |
+| 方法 | 路径                            | 说明                                 |
+| ---- |-------------------------------| ------------------------------------ |
+| POST | `/rag/upload`                 | 上传 PDF，解析、分块、向量化入库     |
+| POST | `/rag/chat`                   | RAG 问答（支持多轮对话）             |
+| POST | `/rag/chat/stream`            | RAG 流式问答（SSE）                  |
+| POST | `/agent/chat`                 | Agent 模式问答（LLM 自主决策调工具） |
 | GET  | `/rag/history/{conversation_id}` | 查询指定会话历史消息                 |
-| GET  | `/rag/conversations`             | 查询会话列表                         |
+| GET  | `/rag/conversations`          | 查询会话列表                         |
 
 ### 示例：RAG 问答
 
@@ -312,6 +311,48 @@ START → agent_node ─┬→ tool_node → agent_node（循环）
 - 全局异常处理器统一捕获，业务异常记 WARNING，未知异常记 ERROR + 完整堆栈
 - 不向前端暴露内部堆栈，避免信息泄露
 
+### 8. RAG 评估体系
+
+构造 30 条测试问题，覆盖四类场景，量化评估系统表现：
+
+| 类别 | 数量 | 目的 |
+|---|---|---|
+| simple_fact | 15 | 单一事实查询 |
+| comparison | 5 | 对比类问题 |
+| multi_hop | 5 | 跨章节综合 |
+| out_of_scope | 5 | 测试拒答能力 |
+
+三项指标：**回答准确率 95.65%、检索命中率 95.65%、知识库外拒答率 100%**。
+
+完整实验记录见 [docs/experiment_log.md](docs/experiment_log.md)，包含三轮迭代对比、4 条错误案例分析、4 条踩坑记录。
+
+### 9. PDF 提取的 CJK 字符规范化
+
+pdfplumber 提取中文时会把标准汉字转成"康熙部首"异体字（如"力" → "⼒"），肉眼一样但计算机认为是不同字符，导致向量库里的文本和用户查询匹配不上。
+
+解决方案：清洗环节加入 Unicode NFKC 规范化：
+
+```python
+import unicodedata
+text = unicodedata.normalize('NFKC', text)
+```
+修复后重新分块，chunk 数从 626 变成 594，中文关键词匹配率从 60% 提升到 100%。
+
+## 评估结果
+
+在 Happy-LLM 技术文档（171 页，594 chunks）上构造 30 条测试问题，覆盖单一事实、对比、跨章节综合、知识库外四类场景。
+
+| 指标 | 数值 |
+|---|---|
+| 回答准确率 | 95.65% |
+| 检索命中率 | 95.65% |
+| 知识库外拒答率 | 100.00% |
+
+详细的评估方法、三轮迭代对比、错误案例分析与踩坑记录见 [docs/experiment_log.md](docs/experiment_log.md)。
+
+
+
+
 ## 项目亮点
 
 - **完整的 RAG 链路**：从 PDF 解析到向量化、检索、生成、引用的闭环
@@ -319,10 +360,13 @@ START → agent_node ─┬→ tool_node → agent_node（循环）
 - **多轮对话**：问题改写 + 历史上下文，真正支持连续对话
 - **Agent 能力**：不只是固定 RAG 链路，LLM 能自主选择工具
 - **生产级考量**：异步、超时、重试、日志、异常处理，接近线上项目
+- **可量化的成果**：30 条测试问题、三项量化指标、三轮迭代对比，不靠"感觉还行"
 
 ## 后续规划
 
-- [ ] Docker 部署，提供在线 Demo
-- [ ] 检索重排序（Rerank），提升 top-k 精度
-- [ ] 用户认证与多租户隔离
-
+- [x] Docker 部署
+- [x] RAG 评估体系
+- [ ] Streamlit 前端（可在线 Demo）
+- [ ] 检索重排序（Rerank）
+- [ ] 多 Agent 协作
+- [ ] MCP 协议接入

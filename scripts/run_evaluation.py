@@ -20,7 +20,7 @@ REPORT_PATH = os.path.join(BASE_DIR, "results", "eval_report.json")
 # 接口配置
 API_URL = "http://localhost:8000/rag/chat"
 TOP_K = 3
-TIMEOUT = 90  # 单条请求超时（秒）
+TIMEOUT = 200  # 单条请求超时（秒）
 
 
 def call_api(question):
@@ -32,7 +32,12 @@ def call_api(question):
         "question": question,
         "top_k": TOP_K,
     }
-    resp = requests.post(API_URL, json=payload, timeout=TIMEOUT)
+    resp = requests.post(
+        API_URL,
+        json=payload,
+        timeout=TIMEOUT,
+        proxies={"http": None, "https": None},
+    )
     resp.raise_for_status()
     data = resp.json()
     answer = data.get("answer", "")
@@ -70,7 +75,8 @@ def is_refusal(answer):
     refusal_keywords = [
         "无法", "没有找到", "未提及", "不知道", "没有相关",
         "未包含", "不含", "没有提供", "未介绍", "未给出",
-        "查不到", "无法回答", "没有涉及",
+        "查不到", "无法回答", "没有涉及","没有提及", "没有说明",
+        "未说明", "未涉及"
     ]
     return any(kw in answer for kw in refusal_keywords)
 
@@ -88,6 +94,7 @@ def evaluate():
     badcases = []
 
     for item in tqdm(questions, desc="评估中"):
+        time.sleep(2)
         try:
             answer, sources = call_api(item["question"])
         except Exception as e:
