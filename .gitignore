@@ -30,4 +30,5 @@ Thumbs.db
 logs/
 *.log
 
-
+data/hello_agents_full.txt
+results/
