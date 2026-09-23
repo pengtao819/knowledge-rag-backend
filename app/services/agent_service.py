@@ -4,9 +4,8 @@ from langchain_core.messages import ToolMessage, HumanMessage, AIMessage
 from langgraph.graph import StateGraph, START, END
 from langchain_openai import ChatOpenAI
 from config import settings
-from app.services.rag_service import retrieve_knowledge_base,list_documents
+from app.services.rag_service import retrieve_knowledge_base,list_documents,new_request_id,pop_sources
 from app.services.llm_client import llm, call_llm_async
-
 MAX_LOOPS = 5   # agent最大调用次数
 
 # 工具列表
@@ -113,38 +112,51 @@ def build_agent_graph():
 agent_graph = build_agent_graph()
 
 async def run_agent(question: str, history: list = None) -> dict:
-    # 初始消息：历史对话 + 当前问题，让 Agent 支持多轮（指代词消解）
-    messages = []
-    if history:
-        for m in history:
-            if m.role == "user":
-                messages.append(HumanMessage(content=m.content))
-            else:
-                messages.append(AIMessage(content=m.content))
-    messages.append(HumanMessage(content=question))
+    # 生成请求 ID，初始化收集器
+    rid = new_request_id()
 
-    initial_state = {
-        "messages": messages,
-        "loop_count": 0
-    }
+    try:
+        # 初始消息：历史对话 + 当前问题
+        messages = []
+        if history:
+            for m in history:
+                if m.role == "user":
+                    messages.append(HumanMessage(content=m.content))
+                else:
+                    messages.append(AIMessage(content=m.content))
+        messages.append(HumanMessage(content=question))
 
-    # 执行图，传入初始状态
-    final_state = await agent_graph.ainvoke(initial_state)
+        initial_state = {
+            "messages": messages,
+            "loop_count": 0
+        }
 
-    # 最后一条消息就是最终回答
-    final_message = final_state["messages"][-1]
+        # 执行图
+        final_state = await agent_graph.ainvoke(initial_state)
 
-    # 循环保护触发时，最后一条可能是带 tool_calls 的 AIMessage
-    if hasattr(final_message, "tool_calls") and final_message.tool_calls:
-        answer = "抱歉，处理超时，请换个方式提问。"
-    else:
-        answer = final_message.content
+        # 取出本次请求收集的 sources
+        sources = pop_sources(rid)
 
-    return {
-        "answer": answer,
-        "messages_count": len(final_state["messages"]),
-        "loop_count": final_state["loop_count"]
-    }
+        # 最后一条消息
+        final_message = final_state["messages"][-1]
+
+        if hasattr(final_message, "tool_calls") and final_message.tool_calls:
+            # 达到循环上限时，LLM 还在调工具。
+            # 补救：再调一次不带工具的 LLM，让它基于已有上下文给出最终答案。
+            final_response = await call_llm_async(llm, final_state["messages"])
+            answer = final_response.content
+        else:
+            answer = final_message.content
+
+        return {
+            "answer": answer,
+            "sources": sources,
+            "messages_count": len(final_state["messages"]),
+            "loop_count": final_state["loop_count"]
+        }
+    finally:
+        # 兜底清理，防止内存泄漏
+        pop_sources(rid)
 
 
 

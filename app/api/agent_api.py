@@ -36,7 +36,7 @@ async def agent_chat(req: AgentChatRequest, db: AsyncSession = Depends(get_db)):
             conversation_id,
             "assistant",
             result["answer"],
-            sources=None,  # Agent 暂时没有 sources 结构
+            sources=result.get("sources"),  # 从 None 改成实际值
         )
 
         return {
@@ -44,6 +44,7 @@ async def agent_chat(req: AgentChatRequest, db: AsyncSession = Depends(get_db)):
             "conversation_id": conversation_id,
             "question": req.question,
             "answer": result["answer"],
+            "sources": result.get("sources", []),
             "messages_count": result["messages_count"],
             "loop_count": result["loop_count"]
         }

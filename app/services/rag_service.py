@@ -6,6 +6,7 @@ import textwrap
 import logging
 import json
 import unicodedata
+import uuid
 from typing import List, TypedDict, Annotated
 from fastapi import UploadFile
 from config import settings
@@ -22,6 +23,13 @@ from langgraph.prebuilt import ToolNode
 from fastapi.responses import StreamingResponse
 from app.db.database import AsyncSessionLocal
 from app.services.chat_service import save_message
+from contextvars import ContextVar
+
+# 请求级 ID，主协程 set，子线程 get（读取能继承）
+_current_request_id: ContextVar[str] = ContextVar("request_id", default="")
+
+# 全局字典：{request_id: [sources]}，多请求并发安全
+_collected_sources: dict = {}
 
 logger = logging.getLogger(__name__)
 
@@ -296,6 +304,11 @@ async def rag_chat(question: str, top_k=3, history: list = None) -> dict:
         "sources": sources
     }
 
+# 用于收集 Agent 调用检索工具时命中的原始 sources
+agent_collected_sources: ContextVar[list] = ContextVar(
+    "agent_collected_sources", default=[]
+)
+
 # 检索工具
 @tool
 def retrieve_knowledge_base(query: str) -> str:
@@ -309,6 +322,15 @@ def retrieve_knowledge_base(query: str) -> str:
     docs = retrieve_chunks(query)
     if not docs:
         return "知识库中未找到相关内容"
+
+    collected = []
+    for doc in docs:
+        collected.append({
+            "source": doc.metadata.get("source", "unknown"),
+            "page": doc.metadata.get("page", 0),
+            "preview": doc.page_content[:200],
+        })
+    collect_sources(collected)
 
     results = []
     for i, doc in enumerate(docs, start=1):
@@ -452,5 +474,22 @@ async def rag_chat_stream(question: str, history: list, conversation_id: int, to
         yield _sse({"type": "error", "data": str(e)})
 
 
+def new_request_id() -> str:
+    """在请求开始时调用，生成 ID 并初始化收集器"""
+    rid = str(uuid.uuid4())
+    _current_request_id.set(rid)
+    _collected_sources[rid] = []
+    return rid
 
+
+def collect_sources(sources: list):
+    """工具内部调用，往当前请求的收集器追加"""
+    rid = _current_request_id.get()
+    if rid and rid in _collected_sources:
+        _collected_sources[rid].extend(sources)
+
+
+def pop_sources(rid: str) -> list:
+    """请求结束时取出并清理"""
+    return _collected_sources.pop(rid, [])
 
