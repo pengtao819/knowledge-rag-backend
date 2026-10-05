@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua
 
 COPY main.py config.py ./
 COPY app/ ./app/
+COPY mcp_server/ ./mcp_server/
 
 RUN mkdir -p /app/chroma_db /app/uploads
 

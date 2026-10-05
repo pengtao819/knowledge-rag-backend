@@ -6,7 +6,7 @@ openai
 langgraph
 chromadb
 pdfplumber
-sqlalchemy
+sqlalchemy[asyncio]
 pydantic
 python-multipart
 python-dotenv
@@ -15,3 +15,5 @@ tenacity
 langchain-text-splitters
 langchain-community
 langchain-chroma
+langchain-mcp-adapters>=0.1.0
+mcp>=1.0.0
