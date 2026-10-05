@@ -30,6 +30,12 @@ from contextvars import ContextVar
 # 请求级 ID，主协程 set，子线程 get（读取能继承）
 _current_request_id: ContextVar[str] = ContextVar("request_id", default="")
 
+# 当前请求使用的知识库名，主协程 set，工具子线程 get
+_current_collection: ContextVar[str] = ContextVar("collection", default="")
+
+# 默认知识库名
+DEFAULT_COLLECTION = settings.CHROMA_COLLECTION
+
 # 全局字典：{request_id: [sources]}，多请求并发安全
 _collected_sources: dict = {}
 
@@ -65,6 +71,15 @@ CHINESE_SEPARATORS = [
 
 _client = None
 
+def set_current_collection(name: str = None):
+    """请求开始时调用，设置当前知识库"""
+    _current_collection.set(name or DEFAULT_COLLECTION)
+
+def get_current_collection() -> str:
+    """工具内部调用，获取当前知识库名"""
+    return _current_collection.get() or DEFAULT_COLLECTION
+
+
 # 获取 Chroma 持久化客户端
 def get_chroma_client():
     global _client
@@ -72,14 +87,15 @@ def get_chroma_client():
         _client = chromadb.chromadb.PersistentClient(path=settings.CHROMA_DIR)
     return _client
 
-def get_chroma_collection():
+def get_chroma_collection(collection_name: str = None):
     client = get_chroma_client()
+    name = collection_name or get_current_collection()
     return client.get_or_create_collection(
-        name=settings.CHROMA_COLLECTION,
+        name=name,
         metadata={
             "hnsw:space": "cosine",
-            "hnsw:num_threads": 1,          # 单线程写入，避免并发冲突
-            "hnsw:sync_threshold": 10000,   # 减少自动压缩频率
+            "hnsw:num_threads": 1,
+            "hnsw:sync_threshold": 10000,
         },
     )
 
@@ -176,8 +192,8 @@ def chunking_pdf(document: List[Document],chunk_size: int = 500,chunk_overlap: i
     return chunks
 
 # 将分块后的chunk向量化并存入chroma
-def store_chunks_to_chroma(chunks: List[Document]) -> int:
-    collection = get_chroma_collection()
+def store_chunks_to_chroma(chunks: List[Document], collection_name: str = None) -> int:
+    collection = get_chroma_collection(collection_name)
     embedding_model = get_embedding_model()
 
     # 提取文本
@@ -441,6 +457,8 @@ def list_documents() -> str:
 
     当用户询问"知识库中有哪些文档"、"已经上传了什么资料"、"文档列表"等问题时使用这个工具。
     """
+    collection = get_chroma_collection()
+    ...
     collection = get_chroma_collection()
     data = collection.get(include=["metadatas"])
 

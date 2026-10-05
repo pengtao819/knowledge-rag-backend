@@ -7,14 +7,15 @@ class ChatRequest(BaseModel):
     question: str
     top_k: int = 3
     conversation_id: int | None = None
-
+    collection_name: str | None = None
 
 class AgentChatRequest(BaseModel):
     question: str
     conversation_id: int | None = None
+    collection_name: str | None = None
 
 
-# ===== 响应模型（可选） =====
+# ===== 响应模型 =====
 
 class SourceItem(BaseModel):
     index: int

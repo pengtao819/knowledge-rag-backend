@@ -4,18 +4,25 @@ import json
 import logging
 from pydantic import BaseModel
 from config import settings
-from app.services.rag_service import rag_chat
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form
 from fastapi.concurrency import run_in_threadpool
-from app.services.rag_service import save_upload_pdf, parse_pdf, chunking_pdf, store_chunks_to_chroma
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_db
-from app.services.rag_service import rag_chat, rewrite_question
 from app.services.chat_service import create_conversation, save_message, get_history, list_conversations
 from app.core.exceptions import ConversationNotFoundError
 from app.schemas.models import ChatRequest
 from fastapi.responses import StreamingResponse
-from app.services.rag_service import rag_chat_stream
+from app.services.rag_service import (
+    rag_chat,
+    rewrite_question,
+    save_upload_pdf,
+    parse_pdf,
+    chunking_pdf,
+    store_chunks_to_chroma,
+    rag_chat_stream,
+    set_current_collection
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +31,8 @@ UPLOAD_FOLDER = settings.UPLOAD_DIR
 
 # PDF处理
 @router.post("/upload")
-async def upload_and_process_pdf(file: UploadFile = File(...)):
+async def upload_and_process_pdf(file: UploadFile = File(...), collection_name: str = Form(None)):
+    set_current_collection(collection_name)
     try:
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(status_code=400, detail="仅支持PDF文件")
@@ -70,7 +78,9 @@ async def upload_and_process_pdf(file: UploadFile = File(...)):
 # RAG检索
 @router.post("/chat")
 async def chat(req: ChatRequest, db: AsyncSession = Depends(get_db)):
-    logger.info("收到问答请求: question=%s, conversation_id=%s", req.question, req.conversation_id)
+    set_current_collection(req.collection_name)
+    logger.info("收到问答请求: question=%s, conversation_id=%s",
+                req.question, req.conversation_id, req.collection_name)
 
     if req.conversation_id:
         conv_exists = await get_history(db, req.conversation_id, limit=1)
@@ -116,6 +126,8 @@ async def chat(req: ChatRequest, db: AsyncSession = Depends(get_db)):
 # 流式回答
 @router.post("/chat/stream")
 async def chat_stream(req: ChatRequest, db: AsyncSession = Depends(get_db)):
+    set_current_collection(req.collection_name)
+
     logger.info("收到流式问答请求: question=%s", req.question)
 
     if not req.conversation_id:
@@ -166,4 +178,15 @@ async def get_conversation_list(db: AsyncSession = Depends(get_db)):
             }
             for c in convs
         ]
+    }
+
+@router.get("/collections")
+async def list_collections():
+    """列出所有知识库"""
+    from app.services.rag_service import get_chroma_client
+    client = get_chroma_client()
+    collections = client.list_collections()
+    return {
+        "statusCode": 200,
+        "collections": [c.name for c in collections],
     }

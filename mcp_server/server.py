@@ -13,14 +13,16 @@ COLLECTION = os.getenv("CHROMA_COLLECTION", "knowledge_base")
 
 
 @mcp.tool()
-def list_documents() -> str:
+def list_documents(collection_name: str = "knowledge_base") -> str:
     """列出知识库中已上传的所有文档。
 
-    返回文档名称和每个文档的分块数量。
     当用户问"知识库有哪些文档""上传了什么资料"时使用。
+
+    Args:
+        collection_name: 知识库名称，默认为 knowledge_base
     """
     client = chromadb.PersistentClient(path=CHROMA_DIR)
-    collection = client.get_collection(COLLECTION)
+    collection = client.get_collection(collection_name)
 
     results = collection.get(include=["metadatas"])
     doc_count = {}
@@ -36,13 +38,16 @@ def list_documents() -> str:
 
 
 @mcp.tool()
-def get_document_stats() -> str:
+def get_document_stats(collection_name: str = "knowledge_base") -> str:
     """返回知识库的统计信息：文档数、总 chunk 数。
 
     当用户问"知识库有多大""总共有多少内容"时使用。
+
+    Args:
+        collection_name: 知识库名称，默认为 knowledge_base
     """
     client = chromadb.PersistentClient(path=CHROMA_DIR)
-    collection = client.get_collection(COLLECTION)
+    collection = client.get_collection(collection_name)
 
     results = collection.get(include=["metadatas"])
     total_chunks = len(results["metadatas"])

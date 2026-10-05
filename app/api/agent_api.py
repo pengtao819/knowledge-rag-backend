@@ -8,12 +8,14 @@ from app.services.chat_service import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.models import AgentChatRequest
+from app.services.rag_service import set_current_collection
 import asyncio
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
 
 @router.post("/chat")
 async def agent_chat(req: AgentChatRequest, db: AsyncSession = Depends(get_db)):
+    set_current_collection(req.collection_name)
     try:
         if not req.conversation_id:
             conv = await create_conversation(db, title=req.question)

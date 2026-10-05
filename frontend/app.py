@@ -21,6 +21,18 @@ if "messages" not in st.session_state:
 if "conversation_id" not in st.session_state:
     st.session_state.conversation_id = None
 
+if "collections" not in st.session_state:
+    try:
+        r = requests.get(f"{API_BASE}/rag/collections", timeout=10,
+                         proxies={"http": None, "https": None})
+        st.session_state.collections = r.json().get("collections", ["knowledge_base"])
+    except:
+        st.session_state.collections = ["knowledge_base"]
+
+if "current_kb" not in st.session_state:
+    st.session_state.current_kb = st.session_state.collections[0] if st.session_state.collections else "knowledge_base"
+
+
 # 侧边栏
 with st.sidebar:
     st.header("操作面板")
@@ -31,6 +43,14 @@ with st.sidebar:
         options=["RAG 模式", "Agent 模式"],
         help="RAG 模式：固定检索+生成链路；Agent 模式：LLM 自主决策是否调用工具",
     )
+
+    kb = st.selectbox(
+        "知识库",
+        options=st.session_state.collections,
+        index=st.session_state.collections.index(st.session_state.current_kb)
+            if st.session_state.current_kb in st.session_state.collections else 0,
+    )
+    st.session_state.current_kb = kb
 
     st.divider()
     st.subheader("上传文档")
@@ -45,6 +65,9 @@ with st.sidebar:
                             uploaded_file.getvalue(),
                             "application/pdf",
                         )
+                    }
+                    data = {
+                        "collection_name": st.session_state.current_kb
                     }
                     resp = requests.post(
                         f"{API_BASE}/rag/upload",
@@ -106,7 +129,11 @@ if question:
                 if mode == "Agent 模式":
                     payload = {"question": question}
                 else:
-                    payload = {"question": question, "top_k": 3}
+                    payload = {
+                        "question": question,
+                        "top_k": 3,
+                        "collection_name": st.session_state.current_kb
+                    }
 
                 if st.session_state.conversation_id:
                     payload["conversation_id"] = st.session_state.conversation_id
