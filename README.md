@@ -39,6 +39,7 @@ Agent 通过 MCP 协议从独立的 MCP Server 加载工具，本地工具与 MC
 - **Docker 一键部署**：`docker compose up --build` 启动 FastAPI + MySQL + Chroma 完整服务栈
 - **RAG 评估体系**：30 条测试问题量化评估，回答准确率 95.65%，知识库外拒答率 100%
 - **MCP 协议接入**：知识库工具通过 MCP Server 标准化暴露，Agent 动态加载调用，工具与 Agent 解耦
+- **两阶段检索**：向量召回 + Rerank 精排，检索精度优于单一向量检索
 
 ## 技术栈
 
@@ -358,7 +359,16 @@ text = unicodedata.normalize('NFKC', text)
 - `agent_service.py` 每次请求动态构建 Agent 图（MCP 工具是异步加载的，不能在模块级初始化）
 - `tool_node` 用 `ainvoke` 异步调用工具，兼容 MCP 的 `StructuredTool`
 
+### 11. Rerank 两阶段检索
 
+向量检索是"粗筛"——基于 Embedding 余弦相似度，快但不精确。Rerank 模型看的是 `(query, document)` 对，能理解更深层的语义匹配，精度高但慢。
+
+系统采用两阶段检索：
+- 向量检索召回 Top-20 候选
+- Rerank 模型（百炼 qwen3.7-text-rerank）逐个打分
+- 取精排后的 Top-3 给 LLM
+
+Rerank 调用失败时回退到原始向量顺序，保证系统可用性。
 
 ## 评估结果
 
