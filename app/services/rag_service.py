@@ -7,6 +7,7 @@ import logging
 import json
 import unicodedata
 import uuid
+import requests
 from typing import List, TypedDict, Annotated
 from fastapi import UploadFile
 from config import settings
@@ -25,6 +26,7 @@ from app.db.database import AsyncSessionLocal
 from app.services.chat_service import save_message
 from contextvars import ContextVar
 
+
 # 请求级 ID，主协程 set，子线程 get（读取能继承）
 _current_request_id: ContextVar[str] = ContextVar("request_id", default="")
 
@@ -38,6 +40,10 @@ UPLOAD_FOLDER = settings.UPLOAD_DIR
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 EMBEDDING_BATCH_SIZE = 20   # 模块级常量
+
+# Rerank
+RERANK_URL = "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
+RERANK_RECALL_K = 20   # 召回候选数量（rerank 前的粗筛池）
 
 # 中文分隔符-优先级
 CHINESE_SEPARATORS = [
@@ -210,6 +216,74 @@ def store_chunks_to_chroma(chunks: List[Document]) -> int:
 
     return len(chunks)
 
+def rerank_documents(question: str, docs: List[Document], top_k: int) -> List[Document]:
+    """
+    调用百炼 Rerank 模型对候选文档精排。
+
+    输入：粗筛召回的一批文档
+    输出：按相关性重排后的 top_k 条
+
+    失败时回退到原始顺序，不影响系统可用性。
+    """
+    if not docs:
+        return []
+
+    print(f"[RERANK] Called with {len(docs)} docs, top_k={top_k}", flush=True)
+
+    try:
+        payload = {
+            "model": settings.RERANK_MODEL,
+            "input": {
+                "query": question,
+                "documents": [d.page_content for d in docs],
+            },
+            "parameters": {
+                "top_n": top_k,
+                "return_documents": False,
+            },
+        }
+        headers = {
+            "Authorization": f"Bearer {settings.DASHSCOPE_API_KEY}",
+            "Content-Type": "application/json",
+        }
+
+        print(f"[RERANK] Sending request...", flush=True)
+        resp = requests.post(
+            RERANK_URL,
+            json=payload,
+            headers=headers,
+            timeout=30,
+            proxies={"http": None, "https": None},   # 禁用代理，避免走 VPN
+        )
+        print(f"[RERANK] Response status: {resp.status_code}", flush=True)
+
+        resp.raise_for_status()
+        data = resp.json()
+
+        results = data.get("output", {}).get("results", [])
+        print(f"[RERANK] Got {len(results)} results", flush=True)
+
+        if not results:
+            print(f"[RERANK] Empty results, fallback to original order", flush=True)
+            return docs[:top_k]
+
+        reranked = []
+        for item in results:
+            idx = item["index"]
+            score = item.get("relevance_score", 0.0)
+            doc = docs[idx]
+            doc.metadata["rerank_score"] = score
+            reranked.append(doc)
+
+        return reranked
+
+    except Exception as e:
+        print(f"[RERANK] EXCEPTION: {type(e).__name__}: {e}", flush=True)
+        logger.warning("Rerank 调用失败，回退到原始顺序: %s", e)
+        return docs[:top_k]
+
+
+
 # 检索函数
 def retrieve_chunks(question: str, top_k=3, max_distance: float = 0.65) -> List[Document]:
     try:
@@ -219,31 +293,50 @@ def retrieve_chunks(question: str, top_k=3, max_distance: float = 0.65) -> List[
         # 将问题转向量
         query_vector = embedding_model.embed_query(question)
 
-        # 在chroma里检索
+        # 召回更多候选（粗筛），后续由 Rerank 精排
+        recall_k = max(top_k * 5, RERANK_RECALL_K)
         results = collection.query(
             query_embeddings=[query_vector],
-            n_results=top_k,
+            n_results=recall_k,
             include=["documents", "metadatas", "distances"]
         )
 
-        # 包装成Document列表
+        # === 诊断 print 开始 ===
+        print(f"[RETRIEVE] Chroma returned {len(results['documents'][0])} candidates", flush=True)
+        if results['distances'][0]:
+            print(f"[RETRIEVE] Distance range: {min(results['distances'][0]):.4f} ~ {max(results['distances'][0]):.4f}",
+                  flush=True)
+        # === 诊断 print 结束 ===
+
+        # 距离过滤：太远的不进 Rerank，减少 rerank 调用成本
         docs = []
         for text, meta, dist in zip(
-            results["documents"][0],
-            results["metadatas"][0],
-            results["distances"][0]
+                results["documents"][0],
+                results["metadatas"][0],
+                results["distances"][0]
         ):
-            if dist > max_distance:     # 距离大于0.65（测试得来的数值），直接丢弃
+            if dist > max_distance:
                 continue
             docs.append(Document(
                 page_content=text,
                 metadata={**meta, "distance": dist}
             ))
+        # === 诊断 print ===
+        print(f"[RETRIEVE] After distance filter (<{max_distance}): {len(docs)} docs", flush=True)
 
-        logger.info("检索: question=%s, 命中 %d 条", question, len(docs))
+        if not docs:
+            logger.info("检索: question=%s, 召回 0 条", question)
+            return []
 
-        return docs
+            # Rerank 精排
+        reranked = rerank_documents(question, docs, top_k)
+
+        print(f"[RETRIEVE] After rerank: {len(reranked)} docs", flush=True)
+
+        return reranked
+
     except Exception as e:
+        print(f"[RETRIEVE] EXCEPTION: {type(e).__name__}: {e}", flush=True)
         logger.exception("检索失败: %s", e)
         raise RetrievalError() from e
 

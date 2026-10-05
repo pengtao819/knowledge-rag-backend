@@ -19,4 +19,7 @@ async def load_mcp_tools():
     """连接 MCP Server，加载所有工具为 LangChain Tool 列表。"""
     client = MultiServerMCPClient(MCP_CONFIG)
     tools = await client.get_tools()
+    # 打印 MCP 加载结果
+    tool_names = [t.name for t in tools]
+    print(f"[MCP] Loaded {len(tools)} tools from MCP Server: {tool_names}", flush=True)
     return tools

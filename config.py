@@ -31,5 +31,9 @@ class Settings():
     # mysql
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
+    # Rerank
+    # Rerank
+    RERANK_MODEL: str = os.getenv("RERANK_MODEL", "qwen3.7-text-rerank")
+
 
 settings = Settings()

@@ -20,6 +20,12 @@
 
 ![docker](docs/docker.png)
 
+### MCP 工具动态加载
+
+Agent 通过 MCP 协议从独立的 MCP Server 加载工具，本地工具与 MCP 工具混合调度。
+
+![mcp](docs/mcp-load.png)
+
 ## 核心功能
 
 - **文档处理**：上传 PDF，自动解析、清洗、分块、向量化入库
@@ -32,6 +38,7 @@
 - **可观测性**：结构化日志 + 业务异常分层
 - **Docker 一键部署**：`docker compose up --build` 启动 FastAPI + MySQL + Chroma 完整服务栈
 - **RAG 评估体系**：30 条测试问题量化评估，回答准确率 95.65%，知识库外拒答率 100%
+- **MCP 协议接入**：知识库工具通过 MCP Server 标准化暴露，Agent 动态加载调用，工具与 Agent 解耦
 
 ## 技术栈
 
@@ -47,7 +54,7 @@
 | 重试机制   | tenacity                                 |
 | 日志       | Python logging + RotatingFileHandler     |
 | 容器化     | Docker + Docker Compose                  |
-
+| 工具协议   | MCP（Model Context Protocol）            |
 
 ## 系统架构
 
@@ -338,6 +345,21 @@ text = unicodedata.normalize('NFKC', text)
 ```
 修复后重新分块，chunk 数从 626 变成 594，中文关键词匹配率从 60% 提升到 100%。
 
+
+### 10. MCP 协议接入
+
+传统做法：Agent 工具硬编码在 Python 代码里，加新工具要改代码、重启服务。
+
+改造后：把知识库的文档管理能力封装成独立的 MCP Server，通过 `langchain-mcp-adapters` 动态加载。工具和 Agent 通过标准协议解耦，未来新增工具（天气查询、数据库查询等）只需新增一个 MCP Server，Agent 端不用改代码。
+
+实现要点：
+- `mcp_server/server.py` 用 `FastMCP` 装饰器定义工具
+- `mcp_client.py` 用 `MultiServerMCPClient` 加载工具
+- `agent_service.py` 每次请求动态构建 Agent 图（MCP 工具是异步加载的，不能在模块级初始化）
+- `tool_node` 用 `ainvoke` 异步调用工具，兼容 MCP 的 `StructuredTool`
+
+
+
 ## 评估结果
 
 在 Happy-LLM 技术文档（171 页，594 chunks）上构造 30 条测试问题，覆盖单一事实、对比、跨章节综合、知识库外四类场景。
@@ -351,8 +373,6 @@ text = unicodedata.normalize('NFKC', text)
 详细的评估方法、三轮迭代对比、错误案例分析与踩坑记录见 [docs/experiment_log.md](docs/experiment_log.md)。
 
 
-
-
 ## 项目亮点
 
 - **完整的 RAG 链路**：从 PDF 解析到向量化、检索、生成、引用的闭环
@@ -362,11 +382,4 @@ text = unicodedata.normalize('NFKC', text)
 - **生产级考量**：异步、超时、重试、日志、异常处理，接近线上项目
 - **可量化的成果**：30 条测试问题、三项量化指标、三轮迭代对比，不靠"感觉还行"
 
-## 后续规划
 
-- [x] Docker 部署
-- [x] RAG 评估体系
-- [ ] Streamlit 前端（可在线 Demo）
-- [ ] 检索重排序（Rerank）
-- [ ] 多 Agent 协作
-- [ ] MCP 协议接入

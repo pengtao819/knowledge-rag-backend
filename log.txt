@@ -1,0 +1,26 @@
+﻿rag-api  | INFO:     Started server process [1]
+rag-api  | INFO:     Waiting for application startup.
+rag-api  | 2026-10-05 03:28:46 | INFO | root | 鏃ュ織绯荤粺鍒濆鍖栧畬鎴?rag-api  | INFO:     Application startup complete.
+rag-api  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+rag-api  | [10/05/26 03:28:56] INFO     Processing request of type            server.py:733
+rag-api  |                              ListToolsRequest                                   
+rag-api  | [MCP] Loaded 2 tools from MCP Server: ['list_documents', 'get_document_stats']
+rag-api  | [Agent] Available tools: ['retrieve_knowledge_base', 'list_documents', 'get_document_stats']
+rag-api  | [10/05/26 03:29:08] INFO     Processing request of type            server.py:733
+rag-api  |                              CallToolRequest                                    
+rag-api  | [10/05/26 03:29:09] INFO     Processing request of type            server.py:733
+rag-api  |                              ListToolsRequest                                   
+rag-api  | INFO:     172.18.0.1:39056 - "POST /agent/chat HTTP/1.1" 200 OK
+rag-api  | [10/05/26 03:32:05] INFO     Processing request of type            server.py:733
+rag-api  |                              ListToolsRequest                                   
+rag-api  | [MCP] Loaded 2 tools from MCP Server: ['list_documents', 'get_document_stats']
+rag-api  | [Agent] Available tools: ['retrieve_knowledge_base', 'list_documents', 'get_document_stats']
+rag-api  | [10/05/26 03:32:32] INFO     Processing request of type            server.py:733
+rag-api  |                              CallToolRequest                                    
+rag-api  | [10/05/26 03:32:33] INFO     Processing request of type            server.py:733
+rag-api  |                              ListToolsRequest                                   
+rag-api  | [10/05/26 03:32:34] INFO     Processing request of type            server.py:733
+rag-api  |                              CallToolRequest                                    
+rag-api  |                     INFO     Processing request of type            server.py:733
+rag-api  |                              ListToolsRequest                                   
+rag-api  | INFO:     172.18.0.1:58038 - "POST /agent/chat HTTP/1.1" 200 OK

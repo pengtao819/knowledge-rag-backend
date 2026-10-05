@@ -79,6 +79,8 @@ async def run_agent(question: str, history: list = None) -> dict:
         # 合并原有工具 + MCP 工具
         all_tools = [retrieve_knowledge_base] + mcp_tools
 
+        print(f"[Agent] Available tools: {[t.name for t in all_tools]}", flush=True)
+
         # 构建一个带 MCP 工具的 Agent 图
         graph = build_agent_graph_with_tools(all_tools)
 
