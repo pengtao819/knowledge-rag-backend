@@ -32,3 +32,6 @@ logs/
 
 data/hello_agents_full.txt
 results/
+
+data/crud_docs.pdf
+data/merged.json

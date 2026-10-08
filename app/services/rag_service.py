@@ -359,7 +359,12 @@ def retrieve_chunks(question: str, top_k=3, max_distance: float = 0.65) -> List[
 # RAG回答
 async def rag_chat(question: str, top_k=3, history: list = None) -> dict:
     # 检索
-    docs = retrieve_chunks(question, top_k)
+    docs = retrieve_chunks(question, top_k)  # ← 先定义
+
+    # 二次过滤：如果检索到的文档距离都偏大，说明没有真正相关的内容
+    if docs and all(d.metadata.get("distance", 0) > 0.55 for d in docs):
+        docs = []
+
     if not docs:
         return {
             "answer": "根据当前知识库无法确定",
@@ -383,10 +388,15 @@ async def rag_chat(question: str, top_k=3, history: list = None) -> dict:
 
     # 构造prompt
     system_prompt = (
-        "你是一个知识库助手。请严格根据下面提供的上下文回答用户问题。"
-        "如果上下文没有相关信息，就回答'根据当前知识库无法确定'。"
-        "回答时请用 [1] [2] 这样的编号引用来源。"
-        "不需要讨好用户，不要编造上下文中没有的内容。"
+        "你是一个严格的知识库助手。你的唯一信息来源是下面提供的【上下文】。\n"
+        "规则：\n"
+        "1. 如果【上下文】中包含回答问题所需的全部信息，请基于它回答，"
+        "并用 [1] [2] 编号标注来源。\n"
+        "2. 如果【上下文】中不包含回答问题所需的信息，必须回答'根据当前知识库无法确定'，"
+        "不要尝试用你已有的知识回答。\n"
+        "3. 不允许把你的内部知识混入回答。如果不确定答案来自上下文还是你的记忆，"
+        "就回答'根据当前知识库无法确定'。\n"
+        "4. 不要编造引用编号。"
     )
     user_prompt = f"{history_text}上下文：\n{context}\n\n用户问题：{question}"
 
@@ -529,6 +539,10 @@ def _sse(data: dict) -> str:
 async def rag_chat_stream(question: str, history: list, conversation_id: int, top_k: int = 5):
     try:
         docs = retrieve_chunks(question, top_k)
+        # 二次过滤
+        if docs and all(d.metadata.get("distance", 0) > 0.55 for d in docs):
+            docs = []
+
         sources = [
             {
                 "index": i,
