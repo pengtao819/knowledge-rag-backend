@@ -337,8 +337,6 @@ def retrieve_chunks(question: str, top_k=3, max_distance: float = 0.65) -> List[
                 page_content=text,
                 metadata={**meta, "distance": dist}
             ))
-        # === 诊断 print ===
-        print(f"[RETRIEVE] After distance filter (<{max_distance}): {len(docs)} docs", flush=True)
 
         if not docs:
             logger.info("检索: question=%s, 召回 0 条", question)
@@ -467,8 +465,6 @@ def list_documents() -> str:
 
     当用户询问"知识库中有哪些文档"、"已经上传了什么资料"、"文档列表"等问题时使用这个工具。
     """
-    collection = get_chroma_collection()
-    ...
     collection = get_chroma_collection()
     data = collection.get(include=["metadatas"])
 

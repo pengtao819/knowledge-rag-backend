@@ -6,10 +6,8 @@ from contextlib import asynccontextmanager
 from app.core.logging import setup_logging
 from fastapi import Request
 import logging
-from fastapi import Request
 from fastapi.responses import JSONResponse
 from app.core.exceptions import AppError
-import uvicorn
 
 logger = logging.getLogger(__name__)
 
